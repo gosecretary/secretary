@@ -2,8 +2,14 @@ package utils
 
 import (
 	"log"
+	"os"
 	"runtime"
 )
+
+// GetStandardLogger returns a standard logger for server error logging
+func GetStandardLogger() *log.Logger {
+	return log.New(os.Stderr, "[SERVER] ", log.LstdFlags|log.Lshortfile)
+}
 
 func Logger(logLevel string, message string) {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)

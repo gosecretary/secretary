@@ -8,10 +8,10 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func DatabaseQuery(query string) (*sql.Rows, error) {
+func DatabaseQuery(query string, args ...interface{}) (*sql.Rows, error) {
 	db := OpenDatabase()
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, args...)
 	if err != nil {
 		utils.Logger("err", err.Error())
 		return nil, err

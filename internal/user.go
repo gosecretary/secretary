@@ -6,6 +6,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"secretary/alpha/internal/config"
 	"secretary/alpha/storage"
 	"secretary/alpha/utils"
 )
@@ -20,7 +21,12 @@ type User struct {
 }
 
 func (u *User) SetPassword(password string) error {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	// Use configurable bcrypt cost from config
+	cost := 12 // Default cost
+	if config.GlobalConfig != nil {
+		cost = config.GlobalConfig.Security.BcryptCost
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), cost)
 	if err != nil {
 		return err
 	}
@@ -68,11 +74,12 @@ func (u *User) CreateUser(username string, password string, active bool) error {
 }
 
 func (u *User) GetUser(username string) *User {
-	query := fmt.Sprintf(`SELECT * FROM user_local WHERE username='%s'`, username)
+	// Use parameterized query to prevent SQL injection
+	query := `SELECT uuid, username, password, active, created_time, modified_time FROM user_local WHERE username = ?`
 
-	rows, err := storage.DatabaseQuery(query)
+	rows, err := storage.DatabaseQuery(query, username)
 	if err != nil {
-		utils.Logger("err", err.Error())
+		utils.Logger("err", fmt.Sprintf("Error querying user: %v", err))
 		return nil
 	}
 	defer rows.Close()
