@@ -1,8 +1,6 @@
 package service
 
 import (
-	"time"
-
 	"secretary/alpha/internal/domain"
 
 	"github.com/google/uuid"
@@ -56,4 +54,4 @@ func (s *credentialService) Update(id uuid.UUID, username, password string) (*do
 
 func (s *credentialService) Delete(id uuid.UUID) error {
 	return s.repo.Delete(id)
-} 
+}

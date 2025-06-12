@@ -62,4 +62,4 @@ func (s *permissionService) DeleteByUserID(userID uuid.UUID) error {
 
 func (s *permissionService) DeleteByResourceID(resourceID uuid.UUID) error {
 	return s.repo.DeleteByResourceID(resourceID)
-} 
+}
