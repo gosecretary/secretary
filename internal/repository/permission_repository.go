@@ -5,8 +5,6 @@ import (
 	"errors"
 
 	"secretary/alpha/internal/domain"
-
-	"github.com/google/uuid"
 )
 
 type permissionRepository struct {
@@ -33,9 +31,9 @@ func (r *permissionRepository) Create(permission *domain.Permission) error {
 	return err
 }
 
-func (r *permissionRepository) FindByID(id uuid.UUID) (*domain.Permission, error) {
+func (r *permissionRepository) FindByID(id string) (*domain.Permission, error) {
 	query := `
-		SELECT id, user_id, resource_id, action, created_at, updated_at
+		SELECT id, user_id, resource_id, role, created_at, updated_at
 		FROM permissions
 		WHERE id = ?
 	`
@@ -44,7 +42,7 @@ func (r *permissionRepository) FindByID(id uuid.UUID) (*domain.Permission, error
 		&permission.ID,
 		&permission.UserID,
 		&permission.ResourceID,
-		&permission.Action,
+		&permission.Role,
 		&permission.CreatedAt,
 		&permission.UpdatedAt,
 	)
@@ -54,9 +52,9 @@ func (r *permissionRepository) FindByID(id uuid.UUID) (*domain.Permission, error
 	return permission, err
 }
 
-func (r *permissionRepository) FindByUserID(userID uuid.UUID) ([]*domain.Permission, error) {
+func (r *permissionRepository) FindByUserID(userID string) ([]*domain.Permission, error) {
 	query := `
-		SELECT id, user_id, resource_id, action, created_at, updated_at
+		SELECT id, user_id, resource_id, role, created_at, updated_at
 		FROM permissions
 		WHERE user_id = ?
 		ORDER BY created_at DESC
@@ -74,7 +72,7 @@ func (r *permissionRepository) FindByUserID(userID uuid.UUID) ([]*domain.Permiss
 			&permission.ID,
 			&permission.UserID,
 			&permission.ResourceID,
-			&permission.Action,
+			&permission.Role,
 			&permission.CreatedAt,
 			&permission.UpdatedAt,
 		)
@@ -86,9 +84,9 @@ func (r *permissionRepository) FindByUserID(userID uuid.UUID) ([]*domain.Permiss
 	return permissions, nil
 }
 
-func (r *permissionRepository) FindByResourceID(resourceID uuid.UUID) ([]*domain.Permission, error) {
+func (r *permissionRepository) FindByResourceID(resourceID string) ([]*domain.Permission, error) {
 	query := `
-		SELECT id, user_id, resource_id, action, created_at, updated_at
+		SELECT id, user_id, resource_id, role, created_at, updated_at
 		FROM permissions
 		WHERE resource_id = ?
 		ORDER BY created_at DESC
@@ -106,7 +104,7 @@ func (r *permissionRepository) FindByResourceID(resourceID uuid.UUID) ([]*domain
 			&permission.ID,
 			&permission.UserID,
 			&permission.ResourceID,
-			&permission.Action,
+			&permission.Role,
 			&permission.CreatedAt,
 			&permission.UpdatedAt,
 		)
@@ -132,20 +130,20 @@ func (r *permissionRepository) Update(permission *domain.Permission) error {
 	return err
 }
 
-func (r *permissionRepository) Delete(id uuid.UUID) error {
+func (r *permissionRepository) Delete(id string) error {
 	query := `DELETE FROM permissions WHERE id = ?`
 	_, err := r.db.Exec(query, id)
 	return err
 }
 
-func (r *permissionRepository) DeleteByUserID(userID uuid.UUID) error {
+func (r *permissionRepository) DeleteByUserID(userID string) error {
 	query := `DELETE FROM permissions WHERE user_id = ?`
 	_, err := r.db.Exec(query, userID)
 	return err
 }
 
-func (r *permissionRepository) DeleteByResourceID(resourceID uuid.UUID) error {
+func (r *permissionRepository) DeleteByResourceID(resourceID string) error {
 	query := `DELETE FROM permissions WHERE resource_id = ?`
 	_, err := r.db.Exec(query, resourceID)
 	return err
-} 
+}

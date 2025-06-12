@@ -5,8 +5,6 @@ import (
 	"errors"
 
 	"secretary/alpha/internal/domain"
-
-	"github.com/google/uuid"
 )
 
 type credentialRepository struct {
@@ -33,7 +31,7 @@ func (r *credentialRepository) Create(credential *domain.Credential) error {
 	return err
 }
 
-func (r *credentialRepository) FindByID(id uuid.UUID) (*domain.Credential, error) {
+func (r *credentialRepository) FindByID(id string) (*domain.Credential, error) {
 	query := `
 		SELECT id, resource_id, username, password, created_at, updated_at
 		FROM credentials
@@ -54,7 +52,7 @@ func (r *credentialRepository) FindByID(id uuid.UUID) (*domain.Credential, error
 	return credential, err
 }
 
-func (r *credentialRepository) FindByResourceID(resourceID uuid.UUID) ([]*domain.Credential, error) {
+func (r *credentialRepository) FindByResourceID(resourceID string) ([]*domain.Credential, error) {
 	query := `
 		SELECT id, resource_id, username, password, created_at, updated_at
 		FROM credentials
@@ -101,8 +99,8 @@ func (r *credentialRepository) Update(credential *domain.Credential) error {
 	return err
 }
 
-func (r *credentialRepository) Delete(id uuid.UUID) error {
+func (r *credentialRepository) Delete(id string) error {
 	query := `DELETE FROM credentials WHERE id = ?`
 	_, err := r.db.Exec(query, id)
 	return err
-} 
+}

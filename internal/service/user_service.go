@@ -1,11 +1,10 @@
 package service
 
 import (
+	"context"
 	"errors"
 
 	"secretary/alpha/internal/domain"
-
-	"github.com/google/uuid"
 )
 
 type userService struct {
@@ -16,66 +15,44 @@ func NewUserService(repo domain.UserRepository) domain.UserService {
 	return &userService{repo: repo}
 }
 
-func (s *userService) Register(username, email, password string) (*domain.User, error) {
+func (s *userService) Register(ctx context.Context, user *domain.User) error {
 	// Check if username already exists
-	if _, err := s.repo.FindByUsername(username); err == nil {
-		return nil, errors.New("username already exists")
+	if _, err := s.repo.FindByUsername(user.Name); err == nil {
+		return errors.New("username already exists")
 	}
 
 	// Check if email already exists
-	if _, err := s.repo.FindByEmail(email); err == nil {
-		return nil, errors.New("email already exists")
-	}
-
-	// Create new user
-	user, err := domain.NewUser(username, email, password)
-	if err != nil {
-		return nil, err
+	if _, err := s.repo.FindByEmail(user.Email); err == nil {
+		return errors.New("email already exists")
 	}
 
 	// Save user to database
-	if err := s.repo.Create(user); err != nil {
-		return nil, err
-	}
-
-	return user, nil
+	return s.repo.Create(user)
 }
 
-func (s *userService) Login(username, password string) (*domain.User, error) {
-	// Find user by username
-	user, err := s.repo.FindByUsername(username)
+func (s *userService) Login(ctx context.Context, email, password string) (string, error) {
+	// Find user by email
+	user, err := s.repo.FindByEmail(email)
 	if err != nil {
-		return nil, errors.New("invalid credentials")
+		return "", errors.New("invalid credentials")
 	}
 
 	// Validate password
 	if !user.ValidatePassword(password) {
-		return nil, errors.New("invalid credentials")
+		return "", errors.New("invalid credentials")
 	}
 
-	return user, nil
+	return user.ID, nil
 }
 
-func (s *userService) GetByID(id uuid.UUID) (*domain.User, error) {
+func (s *userService) GetByID(ctx context.Context, id string) (*domain.User, error) {
 	return s.repo.FindByID(id)
 }
 
-func (s *userService) Update(user *domain.User) error {
-	// Check if user exists
-	existingUser, err := s.repo.FindByID(user.ID)
-	if err != nil {
-		return err
-	}
-
-	// Update user
+func (s *userService) Update(ctx context.Context, user *domain.User) error {
 	return s.repo.Update(user)
 }
 
-func (s *userService) Delete(id uuid.UUID) error {
-	// Check if user exists
-	if _, err := s.repo.FindByID(id); err != nil {
-		return err
-	}
-
+func (s *userService) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(id)
-} 
+}

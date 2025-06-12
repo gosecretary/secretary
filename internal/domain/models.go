@@ -7,9 +7,11 @@ import (
 // User represents a user in the system
 type User struct {
 	ID        string    `json:"id"`
+	Username  string    `json:"username"`
 	Email     string    `json:"email"`
 	Password  string    `json:"-"` // Password is never exposed in JSON
 	Name      string    `json:"name"`
+	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -40,6 +42,13 @@ type Permission struct {
 	UserID     string    `json:"user_id"`
 	ResourceID string    `json:"resource_id"`
 	Role       string    `json:"role"`
+	Action     string    `json:"action"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
-} 
+}
+
+// ValidatePassword checks if the provided password matches the user's password
+func (u *User) ValidatePassword(password string) bool {
+	// Implement password validation logic here
+	return u.Password == password
+}

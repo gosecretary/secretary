@@ -1,9 +1,8 @@
 package service
 
 import (
+	"context"
 	"secretary/alpha/internal/domain"
-
-	"github.com/google/uuid"
 )
 
 type credentialService struct {
@@ -14,44 +13,22 @@ func NewCredentialService(repo domain.CredentialRepository) domain.CredentialSer
 	return &credentialService{repo: repo}
 }
 
-func (s *credentialService) Create(resourceID uuid.UUID, username, password string) (*domain.Credential, error) {
-	credential, err := domain.NewCredential(resourceID, username, password)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.repo.Create(credential); err != nil {
-		return nil, err
-	}
-	return credential, nil
+func (s *credentialService) Create(ctx context.Context, credential *domain.Credential) error {
+	return s.repo.Create(credential)
 }
 
-func (s *credentialService) GetByID(id uuid.UUID) (*domain.Credential, error) {
+func (s *credentialService) GetByID(ctx context.Context, id string) (*domain.Credential, error) {
 	return s.repo.FindByID(id)
 }
 
-func (s *credentialService) GetByResourceID(resourceID uuid.UUID) ([]*domain.Credential, error) {
+func (s *credentialService) GetByResourceID(ctx context.Context, resourceID string) ([]*domain.Credential, error) {
 	return s.repo.FindByResourceID(resourceID)
 }
 
-func (s *credentialService) Update(id uuid.UUID, username, password string) (*domain.Credential, error) {
-	credential, err := s.repo.FindByID(id)
-	if err != nil {
-		return nil, err
-	}
-
-	credential.Username = username
-	if err := credential.UpdatePassword(password); err != nil {
-		return nil, err
-	}
-
-	if err := s.repo.Update(credential); err != nil {
-		return nil, err
-	}
-
-	return credential, nil
+func (s *credentialService) Update(ctx context.Context, credential *domain.Credential) error {
+	return s.repo.Update(credential)
 }
 
-func (s *credentialService) Delete(id uuid.UUID) error {
+func (s *credentialService) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(id)
 }

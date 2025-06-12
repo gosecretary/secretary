@@ -5,8 +5,6 @@ import (
 	"errors"
 
 	"secretary/alpha/internal/domain"
-
-	"github.com/google/uuid"
 )
 
 type resourceRepository struct {
@@ -32,9 +30,9 @@ func (r *resourceRepository) Create(resource *domain.Resource) error {
 	return err
 }
 
-func (r *resourceRepository) FindByID(id uuid.UUID) (*domain.Resource, error) {
+func (r *resourceRepository) FindByID(id string) (*domain.Resource, error) {
 	query := `
-		SELECT id, name, description, created_at, updated_at
+		SELECT id, name, description, type, created_at, updated_at
 		FROM resources
 		WHERE id = ?
 	`
@@ -43,6 +41,7 @@ func (r *resourceRepository) FindByID(id uuid.UUID) (*domain.Resource, error) {
 		&resource.ID,
 		&resource.Name,
 		&resource.Description,
+		&resource.Type,
 		&resource.CreatedAt,
 		&resource.UpdatedAt,
 	)
@@ -97,8 +96,8 @@ func (r *resourceRepository) Update(resource *domain.Resource) error {
 	return err
 }
 
-func (r *resourceRepository) Delete(id uuid.UUID) error {
+func (r *resourceRepository) Delete(id string) error {
 	query := `DELETE FROM resources WHERE id = ?`
 	_, err := r.db.Exec(query, id)
 	return err
-} 
+}

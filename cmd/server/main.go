@@ -8,11 +8,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"secretary/api/http"
-	"secretary/internal/config"
-	"secretary/internal/middleware"
-	"secretary/internal/repository"
-	"secretary/internal/service"
+	httpapi "secretary/alpha/api/http"
+	"secretary/alpha/internal/config"
+	"secretary/alpha/internal/middleware"
+	"secretary/alpha/internal/repository"
+	"secretary/alpha/internal/service"
 )
 
 func main() {
@@ -42,7 +42,7 @@ func main() {
 	permissionService := service.NewPermissionService(permissionRepo)
 
 	// Initialize router with middleware
-	router := http.NewRouter(userService, resourceService, credentialService, permissionService)
+	router := httpapi.NewRouter(userService, resourceService, credentialService, permissionService)
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recovery)
 	router.Use(middleware.CORS)
@@ -69,4 +69,4 @@ func main() {
 
 	log.Println("Shutting down server...")
 	// TODO: Implement graceful shutdown
-} 
+}

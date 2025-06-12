@@ -3,7 +3,6 @@ package repository
 import (
 	"database/sql"
 	"fmt"
-	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -70,4 +69,4 @@ func runMigrations(db *sql.DB) error {
 
 	_, err := db.Exec(createTablesSQL)
 	return err
-} 
+}

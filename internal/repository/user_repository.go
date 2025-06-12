@@ -5,8 +5,6 @@ import (
 	"errors"
 
 	"secretary/alpha/internal/domain"
-
-	"github.com/google/uuid"
 )
 
 type userRepository struct {
@@ -34,19 +32,18 @@ func (r *userRepository) Create(user *domain.User) error {
 	return err
 }
 
-func (r *userRepository) FindByID(id uuid.UUID) (*domain.User, error) {
+func (r *userRepository) FindByID(id string) (*domain.User, error) {
 	query := `
-		SELECT id, username, email, password, role, created_at, updated_at
+		SELECT id, email, password, name, created_at, updated_at
 		FROM users
 		WHERE id = ?
 	`
 	user := &domain.User{}
 	err := r.db.QueryRow(query, id).Scan(
 		&user.ID,
-		&user.Username,
 		&user.Email,
 		&user.Password,
-		&user.Role,
+		&user.Name,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -117,8 +114,8 @@ func (r *userRepository) Update(user *domain.User) error {
 	return err
 }
 
-func (r *userRepository) Delete(id uuid.UUID) error {
+func (r *userRepository) Delete(id string) error {
 	query := `DELETE FROM users WHERE id = ?`
 	_, err := r.db.Exec(query, id)
 	return err
-} 
+}

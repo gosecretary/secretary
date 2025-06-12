@@ -22,6 +22,24 @@ type ResourceService interface {
 	Delete(ctx context.Context, id string) error
 }
 
+// ResourceRepository defines the interface for resource-related data operations
+type ResourceRepository interface {
+	Create(resource *Resource) error
+	FindByID(id string) (*Resource, error)
+	FindAll() ([]*Resource, error)
+	Update(resource *Resource) error
+	Delete(id string) error
+}
+
+// CredentialRepository defines the interface for credential-related data operations
+type CredentialRepository interface {
+	Create(credential *Credential) error
+	FindByID(id string) (*Credential, error)
+	FindByResourceID(resourceID string) ([]*Credential, error)
+	Update(credential *Credential) error
+	Delete(id string) error
+}
+
 // CredentialService defines the interface for credential-related operations
 type CredentialService interface {
 	Create(ctx context.Context, credential *Credential) error
@@ -41,4 +59,26 @@ type PermissionService interface {
 	Delete(ctx context.Context, id string) error
 	DeleteByUserID(ctx context.Context, userID string) error
 	DeleteByResourceID(ctx context.Context, resourceID string) error
-} 
+}
+
+// PermissionRepository defines the interface for permission-related data operations
+type PermissionRepository interface {
+	Create(permission *Permission) error
+	FindByID(id string) (*Permission, error)
+	FindByUserID(userID string) ([]*Permission, error)
+	FindByResourceID(resourceID string) ([]*Permission, error)
+	Update(permission *Permission) error
+	Delete(id string) error
+	DeleteByUserID(userID string) error
+	DeleteByResourceID(resourceID string) error
+}
+
+// UserRepository defines the interface for user-related data operations
+type UserRepository interface {
+	Create(user *User) error
+	FindByID(id string) (*User, error)
+	FindByUsername(username string) (*User, error)
+	FindByEmail(email string) (*User, error)
+	Update(user *User) error
+	Delete(id string) error
+}

@@ -1,13 +1,11 @@
 package http
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
-	"secretary/internal/domain"
+	"secretary/alpha/internal/domain"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -110,4 +108,4 @@ func (h *CredentialHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-} 
+}
