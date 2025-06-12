@@ -1,0 +1,73 @@
+package repository
+
+import (
+	"database/sql"
+	"fmt"
+	"path/filepath"
+
+	_ "github.com/mattn/go-sqlite3"
+)
+
+func InitDB(driver, dsn string) (*sql.DB, error) {
+	db, err := sql.Open(driver, dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	// Run migrations
+	if err := runMigrations(db); err != nil {
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	return db, nil
+}
+
+func runMigrations(db *sql.DB) error {
+	// For now, we'll create tables directly
+	// In a production environment, you'd want to use a proper migration tool
+	createTablesSQL := `
+	CREATE TABLE IF NOT EXISTS users (
+		id TEXT PRIMARY KEY,
+		username TEXT NOT NULL UNIQUE,
+		email TEXT NOT NULL UNIQUE,
+		password TEXT NOT NULL,
+		role TEXT NOT NULL DEFAULT 'user',
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS resources (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		description TEXT,
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS credentials (
+		id TEXT PRIMARY KEY,
+		resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+		username TEXT NOT NULL,
+		password TEXT NOT NULL,
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS permissions (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+		action TEXT NOT NULL,
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL,
+		UNIQUE(user_id, resource_id, action)
+	);
+	`
+
+	_, err := db.Exec(createTablesSQL)
+	return err
+} 

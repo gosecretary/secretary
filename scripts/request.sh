@@ -1,16 +1,67 @@
 #!/bin/bash
 
-export AUTH_COOKIE=$(curl -sS -XPOST -d '{"username": "admin", "password": "$fkMtFaY($vm&XLqK9Qedzp7,9u1%Gpt"}' -D - localhost:6080/api/user/login | grep sc_session_id | cut -d " " -f 2 | tr -d ';')
+BASE_URL="http://localhost:8080"
 
+echo "Testing Secretary API..."
 
-# Create User
-curl -s -XPOST --cookie $AUTH_COOKIE -d '{"username": "pg_sc_user", "password": "admin123", "active": true}' localhost:6080/api/user
+# Register a new user
+echo "1. Registering a new user..."
+curl -s -X POST "$BASE_URL/api/register" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "email": "admin@example.com", "password": "securepassword123"}' | jq .
 
-# Create Resource
-curl -s -XPOST --cookie $AUTH_COOKIE -d '{"name": "Database", "active": true}' localhost:6080/api/resource
+echo ""
 
-# Create ResourceUser
-curl -s -XPOST --cookie $AUTH_COOKIE -d '{"user_id": "84a6de0e-4778-4eef-9bd2-789e9c25da79", "resource_id": "9b2175df-854d-4a3a-9370-021216e45060", "active": true}' localhost:6080/api/resource/user
+# Login
+echo "2. Logging in..."
+LOGIN_RESPONSE=$(curl -s -X POST "$BASE_URL/api/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "securepassword123"}')
+echo $LOGIN_RESPONSE | jq .
 
-# Create ResourceDatabase
-curl -s -XPOST --cookie $AUTH_COOKIE -d '{"resource_user_id": "e4f363a1-a1ff-4c4c-97ba-b073cf7eecf4", "db_host": "127.0.0.1", "db_port": "5432", "name": "test_db", "active": true}' localhost:6080/api/resource/database
+# Extract user ID for further requests
+USER_ID=$(echo $LOGIN_RESPONSE | jq -r '.id')
+echo "User ID: $USER_ID"
+
+echo ""
+
+# Create a resource
+echo "3. Creating a resource..."
+RESOURCE_RESPONSE=$(curl -s -X POST "$BASE_URL/api/resources" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Production Database", "description": "Main production PostgreSQL database"}')
+echo $RESOURCE_RESPONSE | jq .
+
+RESOURCE_ID=$(echo $RESOURCE_RESPONSE | jq -r '.id')
+echo "Resource ID: $RESOURCE_ID"
+
+echo ""
+
+# Create credentials for the resource
+echo "4. Creating credentials..."
+curl -s -X POST "$BASE_URL/api/credentials" \
+  -H "Content-Type: application/json" \
+  -d "{\"resource_id\": \"$RESOURCE_ID\", \"username\": \"dbuser\", \"password\": \"dbpassword123\"}" | jq .
+
+echo ""
+
+# Create a permission
+echo "5. Creating a permission..."
+curl -s -X POST "$BASE_URL/api/permissions" \
+  -H "Content-Type: application/json" \
+  -d "{\"user_id\": \"$USER_ID\", \"resource_id\": \"$RESOURCE_ID\", \"action\": \"read\"}" | jq .
+
+echo ""
+
+# List all resources
+echo "6. Listing all resources..."
+curl -s -X GET "$BASE_URL/api/resources" | jq .
+
+echo ""
+
+# Health check
+echo "7. Health check..."
+curl -s -X GET "$BASE_URL/health"
+
+echo ""
+echo "API testing complete!"

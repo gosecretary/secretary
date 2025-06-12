@@ -1,4 +1,11 @@
 #!/bin/bash -e
 
+echo "Building Secretary..."
+
+# Tidy up dependencies
 go mod tidy
-go build -o ./sec ./gateway/main.go
+
+# Build the server
+go build -o ./bin/secretary ./cmd/server/main.go
+
+echo "Build complete! Executable: ./bin/secretary"
