@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE_URL="http://localhost:8080"
+BASE_URL="http://localhost:6080"
 
 echo "Testing Secretary API..."
 
@@ -59,8 +59,41 @@ curl -s -X GET "$BASE_URL/api/resources" | jq .
 
 echo ""
 
+# Session API example
+echo "7. Creating a session..."
+SESSION_RESPONSE=$(curl -s -X POST "$BASE_URL/api/sessions" \
+  -H "Content-Type: application/json" \
+  -d "{\"user_id\": \"$USER_ID\", \"resource_id\": \"$RESOURCE_ID\", \"client_ip\": \"127.0.0.1\"}")
+echo $SESSION_RESPONSE | jq .
+SESSION_ID=$(echo $SESSION_RESPONSE | jq -r '.id')
+echo "Session ID: $SESSION_ID"
+
+echo ""
+
+# Access Request API example
+echo "8. Creating an access request..."
+ACCESS_REQUEST_RESPONSE=$(curl -s -X POST "$BASE_URL/api/access-requests" \
+  -H "Content-Type: application/json" \
+  -d "{\"user_id\": \"$USER_ID\", \"resource_id\": \"$RESOURCE_ID\", \"reason\": \"Need access for maintenance\"}")
+echo $ACCESS_REQUEST_RESPONSE | jq .
+ACCESS_REQUEST_ID=$(echo $ACCESS_REQUEST_RESPONSE | jq -r '.id')
+echo "Access Request ID: $ACCESS_REQUEST_ID"
+
+echo ""
+
+# Ephemeral Credential API example
+echo "9. Generating ephemeral credentials..."
+EPH_CRED_RESPONSE=$(curl -s -X POST "$BASE_URL/api/ephemeral-credentials" \
+  -H "Content-Type: application/json" \
+  -d "{\"user_id\": \"$USER_ID\", \"resource_id\": \"$RESOURCE_ID\"}")
+echo $EPH_CRED_RESPONSE | jq .
+EPH_CRED_ID=$(echo $EPH_CRED_RESPONSE | jq -r '.id')
+echo "Ephemeral Credential ID: $EPH_CRED_ID"
+
+echo ""
+
 # Health check
-echo "7. Health check..."
+echo "10. Health check..."
 curl -s -X GET "$BASE_URL/health"
 
 echo ""

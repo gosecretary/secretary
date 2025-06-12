@@ -47,6 +47,50 @@ type Permission struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
+// Session represents an active or completed connection to a resource
+type Session struct {
+	ID             string    `json:"id"`
+	UserID         string    `json:"user_id"`
+	ResourceID     string    `json:"resource_id"`
+	StartTime      time.Time `json:"start_time"`
+	EndTime        time.Time `json:"end_time,omitempty"`
+	Status         string    `json:"status"` // "active", "completed", "terminated"
+	ClientIP       string    `json:"client_ip"`
+	ClientMetadata string    `json:"client_metadata,omitempty"`
+	AuditPath      string    `json:"audit_path,omitempty"` // Path to session recording
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+// AccessRequest represents a request for access to a resource
+type AccessRequest struct {
+	ID          string    `json:"id"`
+	UserID      string    `json:"user_id"`
+	ResourceID  string    `json:"resource_id"`
+	Reason      string    `json:"reason"`
+	Status      string    `json:"status"` // "pending", "approved", "denied"
+	ReviewerID  string    `json:"reviewer_id,omitempty"`
+	ReviewNotes string    `json:"review_notes,omitempty"`
+	RequestedAt time.Time `json:"requested_at"`
+	ReviewedAt  time.Time `json:"reviewed_at,omitempty"`
+	ExpiresAt   time.Time `json:"expires_at,omitempty"` // When approved access expires
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// EphemeralCredential represents a temporary credential for accessing a resource
+type EphemeralCredential struct {
+	ID         string    `json:"id"`
+	UserID     string    `json:"user_id"`
+	ResourceID string    `json:"resource_id"`
+	Username   string    `json:"username"`
+	Password   string    `json:"-"` // Password is never exposed in JSON
+	Token      string    `json:"token,omitempty"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	CreatedAt  time.Time `json:"created_at"`
+	UsedAt     time.Time `json:"used_at,omitempty"`
+}
+
 // ValidatePassword checks if the provided password matches the user's password
 func (u *User) ValidatePassword(password string) bool {
 	// Implement password validation logic here

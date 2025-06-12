@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"time"
 )
 
 // UserService defines the interface for user-related operations
@@ -81,4 +82,69 @@ type UserRepository interface {
 	FindByEmail(email string) (*User, error)
 	Update(user *User) error
 	Delete(id string) error
+}
+
+// SessionService defines the interface for session-related operations
+type SessionService interface {
+	Create(ctx context.Context, session *Session) error
+	GetByID(ctx context.Context, id string) (*Session, error)
+	GetByUserID(ctx context.Context, userID string) ([]*Session, error)
+	GetByResourceID(ctx context.Context, resourceID string) ([]*Session, error)
+	GetActive(ctx context.Context) ([]*Session, error)
+	Update(ctx context.Context, session *Session) error
+	Terminate(ctx context.Context, id string) error
+}
+
+// SessionRepository defines the interface for session-related data operations
+type SessionRepository interface {
+	Create(session *Session) error
+	FindByID(id string) (*Session, error)
+	FindByUserID(userID string) ([]*Session, error)
+	FindByResourceID(resourceID string) ([]*Session, error)
+	FindActive() ([]*Session, error)
+	Update(session *Session) error
+	Delete(id string) error
+}
+
+// AccessRequestService defines the interface for access request operations
+type AccessRequestService interface {
+	Create(ctx context.Context, request *AccessRequest) error
+	GetByID(ctx context.Context, id string) (*AccessRequest, error)
+	GetByUserID(ctx context.Context, userID string) ([]*AccessRequest, error)
+	GetByResourceID(ctx context.Context, resourceID string) ([]*AccessRequest, error)
+	GetPending(ctx context.Context) ([]*AccessRequest, error)
+	Approve(ctx context.Context, id string, reviewerID string, notes string, expiresAt time.Time) error
+	Deny(ctx context.Context, id string, reviewerID string, notes string) error
+}
+
+// AccessRequestRepository defines the interface for access request data operations
+type AccessRequestRepository interface {
+	Create(request *AccessRequest) error
+	FindByID(id string) (*AccessRequest, error)
+	FindByUserID(userID string) ([]*AccessRequest, error)
+	FindByResourceID(resourceID string) ([]*AccessRequest, error)
+	FindByStatus(status string) ([]*AccessRequest, error)
+	Update(request *AccessRequest) error
+}
+
+// EphemeralCredentialService defines the interface for ephemeral credential operations
+type EphemeralCredentialService interface {
+	Generate(ctx context.Context, userID string, resourceID string, duration time.Duration) (*EphemeralCredential, error)
+	GetByID(ctx context.Context, id string) (*EphemeralCredential, error)
+	GetByToken(ctx context.Context, token string) (*EphemeralCredential, error)
+	MarkAsUsed(ctx context.Context, id string) error
+	RevokeByUserID(ctx context.Context, userID string) error
+	RevokeByResourceID(ctx context.Context, resourceID string) error
+}
+
+// EphemeralCredentialRepository defines the interface for ephemeral credential data operations
+type EphemeralCredentialRepository interface {
+	Create(credential *EphemeralCredential) error
+	FindByID(id string) (*EphemeralCredential, error)
+	FindByToken(token string) (*EphemeralCredential, error)
+	FindByUserID(userID string) ([]*EphemeralCredential, error)
+	Update(credential *EphemeralCredential) error
+	DeleteExpired() error
+	DeleteByUserID(userID string) error
+	DeleteByResourceID(resourceID string) error
 }

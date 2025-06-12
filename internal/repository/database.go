@@ -65,6 +65,47 @@ func runMigrations(db *sql.DB) error {
 		updated_at DATETIME NOT NULL,
 		UNIQUE(user_id, resource_id, action)
 	);
+
+	CREATE TABLE IF NOT EXISTS sessions (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+		start_time DATETIME NOT NULL,
+		end_time DATETIME,
+		status TEXT NOT NULL,
+		client_ip TEXT NOT NULL,
+		client_metadata TEXT,
+		audit_path TEXT,
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS access_requests (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+		reason TEXT NOT NULL,
+		status TEXT NOT NULL,
+		reviewer_id TEXT REFERENCES users(id),
+		review_notes TEXT,
+		requested_at DATETIME NOT NULL,
+		reviewed_at DATETIME,
+		expires_at DATETIME,
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS ephemeral_credentials (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+		username TEXT NOT NULL,
+		password TEXT NOT NULL,
+		token TEXT UNIQUE,
+		expires_at DATETIME NOT NULL,
+		created_at DATETIME NOT NULL,
+		used_at DATETIME
+	);
 	`
 
 	_, err := db.Exec(createTablesSQL)

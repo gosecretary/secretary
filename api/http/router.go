@@ -14,6 +14,9 @@ func NewRouter(
 	resourceService domain.ResourceService,
 	credentialService domain.CredentialService,
 	permissionService domain.PermissionService,
+	sessionService domain.SessionService,
+	accessRequestService domain.AccessRequestService,
+	ephemeralCredentialService domain.EphemeralCredentialService,
 ) *mux.Router {
 	router := mux.NewRouter()
 
@@ -22,6 +25,11 @@ func NewRouter(
 	resourceHandler := NewResourceHandler(resourceService)
 	credentialHandler := NewCredentialHandler(credentialService)
 	permissionHandler := NewPermissionHandler(permissionService)
+
+	// Create new handlers for the additional services
+	sessionHandler := NewSessionHandler(sessionService)
+	accessRequestHandler := NewAccessRequestHandler(accessRequestService)
+	ephemeralCredentialHandler := NewEphemeralCredentialHandler(ephemeralCredentialService)
 
 	// Public routes
 	router.HandleFunc("/api/register", userHandler.Register).Methods("POST")
@@ -60,10 +68,32 @@ func NewRouter(
 	api.HandleFunc("/users/{user_id}/permissions", permissionHandler.DeleteByUserID).Methods("DELETE")
 	api.HandleFunc("/resources/{resource_id}/permissions", permissionHandler.DeleteByResourceID).Methods("DELETE")
 
+	// Session routes
+	api.HandleFunc("/sessions", sessionHandler.GetActive).Methods("GET")
+	api.HandleFunc("/sessions/{id}", sessionHandler.GetByID).Methods("GET")
+	api.HandleFunc("/sessions/{id}/terminate", sessionHandler.Terminate).Methods("POST")
+	api.HandleFunc("/users/{user_id}/sessions", sessionHandler.GetByUserID).Methods("GET")
+	api.HandleFunc("/resources/{resource_id}/sessions", sessionHandler.GetByResourceID).Methods("GET")
+
+	// Access request routes
+	api.HandleFunc("/access-requests", accessRequestHandler.Create).Methods("POST")
+	api.HandleFunc("/access-requests", accessRequestHandler.GetPending).Methods("GET")
+	api.HandleFunc("/access-requests/{id}", accessRequestHandler.GetByID).Methods("GET")
+	api.HandleFunc("/access-requests/{id}/approve", accessRequestHandler.Approve).Methods("POST")
+	api.HandleFunc("/access-requests/{id}/deny", accessRequestHandler.Deny).Methods("POST")
+	api.HandleFunc("/users/{user_id}/access-requests", accessRequestHandler.GetByUserID).Methods("GET")
+	api.HandleFunc("/resources/{resource_id}/access-requests", accessRequestHandler.GetByResourceID).Methods("GET")
+
+	// Ephemeral credential routes
+	api.HandleFunc("/ephemeral-credentials", ephemeralCredentialHandler.Generate).Methods("POST")
+	api.HandleFunc("/ephemeral-credentials/{id}", ephemeralCredentialHandler.GetByID).Methods("GET")
+	api.HandleFunc("/ephemeral-credentials/{id}/use", ephemeralCredentialHandler.MarkAsUsed).Methods("POST")
+	api.HandleFunc("/ephemeral-credentials/token/{token}", ephemeralCredentialHandler.GetByToken).Methods("GET")
+
 	// Health check
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}).Methods("GET")
 
 	return router
-} 
+}
