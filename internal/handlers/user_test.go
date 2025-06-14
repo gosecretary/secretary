@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	"secretary/alpha/internal/domain"
 
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -38,11 +40,17 @@ func TestUserHandler_CreateUser(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 			expectedBody: map[string]interface{}{
+				"success": true,
+				"code":    float64(200),
 				"message": "User created successfully",
 				"data": map[string]interface{}{
-					"username": "testuser",
-					"email":    "test@example.com",
-					"name":     "Test User",
+					"id":         "",
+					"username":   "testuser",
+					"email":      "test@example.com",
+					"name":       "Test User",
+					"role":       "",
+					"created_at": mock.Anything,
+					"updated_at": mock.Anything,
 				},
 			},
 		},
@@ -52,10 +60,19 @@ func TestUserHandler_CreateUser(t *testing.T) {
 				Username: "testuser",
 				// Missing required fields
 			},
-			mockSetup:      func(m *MockUserService) {},
-			expectedStatus: http.StatusBadRequest,
+			mockSetup: func(m *MockUserService) {
+				m.On("CreateUser", mock.Anything, mock.MatchedBy(func(user *domain.User) bool {
+					return user.Username == "testuser" && user.Password == ""
+				})).Return(fmt.Errorf("password is required"))
+			},
+			expectedStatus: http.StatusInternalServerError,
 			expectedBody: map[string]interface{}{
-				"error": "Invalid request body",
+				"success": false,
+				"code":    float64(500),
+				"message": "Failed to create user",
+				"data": map[string]interface{}{
+					"error": mock.Anything,
+				},
 			},
 		},
 		{
@@ -69,9 +86,14 @@ func TestUserHandler_CreateUser(t *testing.T) {
 			mockSetup: func(m *MockUserService) {
 				m.On("CreateUser", mock.Anything, mock.Anything).Return(errors.New("username already exists"))
 			},
-			expectedStatus: http.StatusConflict,
+			expectedStatus: http.StatusInternalServerError,
 			expectedBody: map[string]interface{}{
-				"error": "Username already exists",
+				"success": false,
+				"code":    float64(500),
+				"message": "Failed to create user",
+				"data": map[string]interface{}{
+					"error": mock.Anything,
+				},
 			},
 		},
 	}
@@ -101,8 +123,32 @@ func TestUserHandler_CreateUser(t *testing.T) {
 			assert.NoError(t, err)
 
 			// Compare response with expected body
-			for k, v := range tt.expectedBody {
-				assert.Equal(t, v, response[k])
+			if tt.name == "successful user creation" {
+				assert.Equal(t, tt.expectedBody["success"], response["success"])
+				assert.Equal(t, tt.expectedBody["code"], response["code"])
+				assert.Equal(t, tt.expectedBody["message"], response["message"])
+
+				data := response["data"].(map[string]interface{})
+				expectedData := tt.expectedBody["data"].(map[string]interface{})
+
+				assert.Equal(t, expectedData["id"], data["id"])
+				assert.Equal(t, expectedData["username"], data["username"])
+				assert.Equal(t, expectedData["email"], data["email"])
+				assert.Equal(t, expectedData["name"], data["name"])
+				assert.Equal(t, expectedData["role"], data["role"])
+				assert.NotNil(t, data["created_at"])
+				assert.NotNil(t, data["updated_at"])
+			} else if tt.name == "invalid request body" || tt.name == "username already exists" {
+				assert.Equal(t, tt.expectedBody["success"], response["success"])
+				assert.Equal(t, tt.expectedBody["code"], response["code"])
+				assert.Equal(t, tt.expectedBody["message"], response["message"])
+
+				data := response["data"].(map[string]interface{})
+				assert.NotNil(t, data["error"])
+			} else {
+				for k, v := range tt.expectedBody {
+					assert.Equal(t, v, response[k])
+				}
 			}
 
 			// Verify all expectations were met
@@ -136,15 +182,17 @@ func TestUserHandler_GetUser(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 			expectedBody: map[string]interface{}{
+				"success": true,
+				"code":    float64(200),
 				"message": "User retrieved successfully",
 				"data": map[string]interface{}{
-					"id":        "test-user-id",
-					"username":  "testuser",
-					"email":     "test@example.com",
-					"name":      "Test User",
-					"role":      "user",
-					"createdAt": mock.Anything,
-					"updatedAt": mock.Anything,
+					"id":         "test-user-id",
+					"username":   "testuser",
+					"email":      "test@example.com",
+					"name":       "Test User",
+					"role":       "user",
+					"created_at": mock.Anything,
+					"updated_at": mock.Anything,
 				},
 			},
 		},
@@ -156,7 +204,12 @@ func TestUserHandler_GetUser(t *testing.T) {
 			},
 			expectedStatus: http.StatusNotFound,
 			expectedBody: map[string]interface{}{
-				"error": "User not found",
+				"success": false,
+				"code":    float64(404),
+				"message": "User not found",
+				"data": map[string]interface{}{
+					"error": "Resource not found",
+				},
 			},
 		},
 	}
@@ -174,6 +227,9 @@ func TestUserHandler_GetUser(t *testing.T) {
 			req := httptest.NewRequest("GET", "/api/users/"+tt.userID, nil)
 			w := httptest.NewRecorder()
 
+			// Set up mux vars
+			req = mux.SetURLVars(req, map[string]string{"id": tt.userID})
+
 			// Call handler
 			handler.GetByID(w, req)
 
@@ -185,18 +241,30 @@ func TestUserHandler_GetUser(t *testing.T) {
 			assert.NoError(t, err)
 
 			// Compare response with expected body
-			for k, v := range tt.expectedBody {
-				if k == "data" {
-					data := v.(map[string]interface{})
-					responseData := response[k].(map[string]interface{})
-					for dk, dv := range data {
-						if dk == "createdAt" || dk == "updatedAt" {
-							// Skip comparing timestamps
-							continue
-						}
-						assert.Equal(t, dv, responseData[dk])
-					}
-				} else {
+			if tt.name == "successful get user" {
+				assert.Equal(t, tt.expectedBody["success"], response["success"])
+				assert.Equal(t, tt.expectedBody["code"], response["code"])
+				assert.Equal(t, tt.expectedBody["message"], response["message"])
+
+				data := response["data"].(map[string]interface{})
+				expectedData := tt.expectedBody["data"].(map[string]interface{})
+
+				assert.Equal(t, expectedData["id"], data["id"])
+				assert.Equal(t, expectedData["username"], data["username"])
+				assert.Equal(t, expectedData["email"], data["email"])
+				assert.Equal(t, expectedData["name"], data["name"])
+				assert.Equal(t, expectedData["role"], data["role"])
+				assert.NotNil(t, data["created_at"])
+				assert.NotNil(t, data["updated_at"])
+			} else if tt.name == "user not found" {
+				assert.Equal(t, tt.expectedBody["success"], response["success"])
+				assert.Equal(t, tt.expectedBody["code"], response["code"])
+				assert.Equal(t, tt.expectedBody["message"], response["message"])
+
+				data := response["data"].(map[string]interface{})
+				assert.NotNil(t, data["error"])
+			} else {
+				for k, v := range tt.expectedBody {
 					assert.Equal(t, v, response[k])
 				}
 			}

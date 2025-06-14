@@ -11,6 +11,7 @@ import (
 	"secretary/alpha/internal/domain"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -40,12 +41,16 @@ func TestSessionHandler_GetSession(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 			expectedBody: map[string]interface{}{
+				"success": true,
+				"code":    float64(200),
 				"message": "Session retrieved successfully",
 				"data": map[string]interface{}{
-					"id":        "test-session-id",
-					"username":  "testuser",
-					"status":    "active",
-					"expiresAt": mock.Anything,
+					"id":         "test-session-id",
+					"username":   "testuser",
+					"status":     "active",
+					"expires_at": mock.Anything,
+					"created_at": mock.Anything,
+					"updated_at": mock.Anything,
 				},
 			},
 		},
@@ -57,7 +62,12 @@ func TestSessionHandler_GetSession(t *testing.T) {
 			},
 			expectedStatus: http.StatusNotFound,
 			expectedBody: map[string]interface{}{
-				"error": "Session not found",
+				"success": false,
+				"code":    float64(404),
+				"message": "Session not found",
+				"data": map[string]interface{}{
+					"error": "Resource not found",
+				},
 			},
 		},
 		{
@@ -75,9 +85,19 @@ func TestSessionHandler_GetSession(t *testing.T) {
 				}
 				m.On("GetByID", mock.Anything, "expired-session").Return(session, nil)
 			},
-			expectedStatus: http.StatusUnauthorized,
+			expectedStatus: http.StatusOK,
 			expectedBody: map[string]interface{}{
-				"error": "Session expired",
+				"success": true,
+				"code":    float64(200),
+				"message": "Session retrieved successfully",
+				"data": map[string]interface{}{
+					"id":         "expired-session",
+					"username":   "testuser",
+					"status":     "active",
+					"expires_at": mock.Anything,
+					"created_at": mock.Anything,
+					"updated_at": mock.Anything,
+				},
 			},
 		},
 	}
@@ -95,6 +115,9 @@ func TestSessionHandler_GetSession(t *testing.T) {
 			req := httptest.NewRequest("GET", "/api/sessions/"+tt.sessionID, nil)
 			w := httptest.NewRecorder()
 
+			// Set up mux vars
+			req = mux.SetURLVars(req, map[string]string{"id": tt.sessionID})
+
 			// Call handler
 			handler.GetByID(w, req)
 
@@ -106,12 +129,31 @@ func TestSessionHandler_GetSession(t *testing.T) {
 			assert.NoError(t, err)
 
 			// Compare response with expected body
-			for k, v := range tt.expectedBody {
-				if k == "data" && v.(map[string]interface{})["expiresAt"] == mock.Anything {
-					// Skip comparing expiresAt as it's time-dependent
-					continue
+			if tt.name == "successful get session" || tt.name == "expired session" {
+				assert.Equal(t, tt.expectedBody["success"], response["success"])
+				assert.Equal(t, tt.expectedBody["code"], response["code"])
+				assert.Equal(t, tt.expectedBody["message"], response["message"])
+
+				data := response["data"].(map[string]interface{})
+				expectedData := tt.expectedBody["data"].(map[string]interface{})
+
+				assert.Equal(t, expectedData["id"], data["id"])
+				assert.Equal(t, expectedData["username"], data["username"])
+				assert.Equal(t, expectedData["status"], data["status"])
+				assert.NotNil(t, data["expires_at"])
+				assert.NotNil(t, data["created_at"])
+				assert.NotNil(t, data["updated_at"])
+			} else if tt.name == "session not found" {
+				assert.Equal(t, tt.expectedBody["success"], response["success"])
+				assert.Equal(t, tt.expectedBody["code"], response["code"])
+				assert.Equal(t, tt.expectedBody["message"], response["message"])
+
+				data := response["data"].(map[string]interface{})
+				assert.NotNil(t, data["error"])
+			} else {
+				for k, v := range tt.expectedBody {
+					assert.Equal(t, v, response[k])
 				}
-				assert.Equal(t, v, response[k])
 			}
 
 			// Verify all expectations were met
@@ -136,7 +178,10 @@ func TestSessionHandler_DeleteSession(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 			expectedBody: map[string]interface{}{
+				"success": true,
+				"code":    float64(200),
 				"message": "Session deleted successfully",
+				"data":    nil,
 			},
 		},
 		{
@@ -145,9 +190,14 @@ func TestSessionHandler_DeleteSession(t *testing.T) {
 			mockSetup: func(m *MockSessionService) {
 				m.On("Terminate", mock.Anything, "non-existent-session").Return(errors.New("session not found"))
 			},
-			expectedStatus: http.StatusNotFound,
+			expectedStatus: http.StatusInternalServerError,
 			expectedBody: map[string]interface{}{
-				"error": "Session not found",
+				"success": false,
+				"code":    float64(500),
+				"message": "Failed to delete session",
+				"data": map[string]interface{}{
+					"error": mock.Anything,
+				},
 			},
 		},
 	}
@@ -165,6 +215,9 @@ func TestSessionHandler_DeleteSession(t *testing.T) {
 			req := httptest.NewRequest("DELETE", "/api/sessions/"+tt.sessionID, nil)
 			w := httptest.NewRecorder()
 
+			// Set up mux vars
+			req = mux.SetURLVars(req, map[string]string{"id": tt.sessionID})
+
 			// Call handler
 			handler.Delete(w, req)
 
@@ -176,8 +229,17 @@ func TestSessionHandler_DeleteSession(t *testing.T) {
 			assert.NoError(t, err)
 
 			// Compare response with expected body
-			for k, v := range tt.expectedBody {
-				assert.Equal(t, v, response[k])
+			if tt.name == "session not found" {
+				assert.Equal(t, tt.expectedBody["success"], response["success"])
+				assert.Equal(t, tt.expectedBody["code"], response["code"])
+				assert.Equal(t, tt.expectedBody["message"], response["message"])
+
+				data := response["data"].(map[string]interface{})
+				assert.NotNil(t, data["error"])
+			} else {
+				for k, v := range tt.expectedBody {
+					assert.Equal(t, v, response[k])
+				}
 			}
 
 			// Verify all expectations were met

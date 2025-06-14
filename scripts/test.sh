@@ -6,4 +6,4 @@ echo "Running all Go tests..."
 go test -v -cover ./...
 
 # Print summary
-echo "\nAll tests completed successfully." 
+echo "All tests completed successfully." 
