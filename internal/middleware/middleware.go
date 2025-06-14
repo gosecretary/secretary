@@ -99,15 +99,8 @@ func Logger(next http.Handler) http.Handler {
 
 		next.ServeHTTP(rw, r)
 
-		// Log the request
-		utils.GetStandardLogger().Printf(
-			"%s %s %s %d %s",
-			r.Method,
-			r.RequestURI,
-			r.RemoteAddr,
-			rw.statusCode,
-			time.Since(start),
-		)
+		// Log the request using the centralized HTTP logging function
+		HTTPRequest(r.Method, r.RequestURI, r.RemoteAddr, rw.statusCode, time.Since(start))
 	})
 }
 
@@ -202,4 +195,8 @@ func RBAC(userService domain.UserService, roles ...string) mux.MiddlewareFunc {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func HTTPRequest(method, uri, remoteAddr string, statusCode int, duration time.Duration) {
+	utils.Infof("HTTP %s %s %s %d %s", method, uri, remoteAddr, statusCode, duration)
 }
