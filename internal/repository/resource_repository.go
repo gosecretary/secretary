@@ -3,6 +3,9 @@ package repository
 import (
 	"database/sql"
 	"errors"
+	"time"
+
+	"github.com/google/uuid"
 
 	"secretary/alpha/internal/domain"
 )
@@ -16,14 +19,24 @@ func NewResourceRepository(db *sql.DB) domain.ResourceRepository {
 }
 
 func (r *resourceRepository) Create(resource *domain.Resource) error {
+	// Generate UUID if not provided
+	if resource.ID == "" {
+		resource.ID = uuid.New().String()
+	}
+
+	// Set timestamps
+	resource.CreatedAt = time.Now()
+	resource.UpdatedAt = time.Now()
+
 	query := `
-		INSERT INTO resources (id, name, description, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO resources (id, name, description, type, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?)
 	`
 	_, err := r.db.Exec(query,
 		resource.ID,
 		resource.Name,
 		resource.Description,
+		resource.Type,
 		resource.CreatedAt,
 		resource.UpdatedAt,
 	)
@@ -53,7 +66,7 @@ func (r *resourceRepository) FindByID(id string) (*domain.Resource, error) {
 
 func (r *resourceRepository) FindAll() ([]*domain.Resource, error) {
 	query := `
-		SELECT id, name, description, created_at, updated_at
+		SELECT id, name, description, type, created_at, updated_at
 		FROM resources
 		ORDER BY created_at DESC
 	`
@@ -70,6 +83,7 @@ func (r *resourceRepository) FindAll() ([]*domain.Resource, error) {
 			&resource.ID,
 			&resource.Name,
 			&resource.Description,
+			&resource.Type,
 			&resource.CreatedAt,
 			&resource.UpdatedAt,
 		)
@@ -82,14 +96,16 @@ func (r *resourceRepository) FindAll() ([]*domain.Resource, error) {
 }
 
 func (r *resourceRepository) Update(resource *domain.Resource) error {
+	resource.UpdatedAt = time.Now()
 	query := `
 		UPDATE resources
-		SET name = ?, description = ?, updated_at = ?
+		SET name = ?, description = ?, type = ?, updated_at = ?
 		WHERE id = ?
 	`
 	_, err := r.db.Exec(query,
 		resource.Name,
 		resource.Description,
+		resource.Type,
 		resource.UpdatedAt,
 		resource.ID,
 	)

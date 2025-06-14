@@ -16,11 +16,11 @@ type UserService interface {
 
 // ResourceService defines the interface for resource-related operations
 type ResourceService interface {
-	Create(ctx context.Context, resource *Resource) error
-	GetByID(ctx context.Context, id string) (*Resource, error)
-	GetAll(ctx context.Context) ([]*Resource, error)
-	Update(ctx context.Context, resource *Resource) error
-	Delete(ctx context.Context, id string) error
+	CreateResource(ctx context.Context, resource *Resource) error
+	ListResources(ctx context.Context) ([]*Resource, error)
+	GetResource(ctx context.Context, id string) (*Resource, error)
+	UpdateResource(ctx context.Context, resource *Resource) error
+	DeleteResource(ctx context.Context, id string) error
 }
 
 // ResourceRepository defines the interface for resource-related data operations
@@ -43,21 +43,24 @@ type CredentialRepository interface {
 
 // CredentialService defines the interface for credential-related operations
 type CredentialService interface {
-	Create(ctx context.Context, credential *Credential) error
-	GetByID(ctx context.Context, id string) (*Credential, error)
-	GetByResourceID(ctx context.Context, resourceID string) ([]*Credential, error)
-	Update(ctx context.Context, credential *Credential) error
-	Delete(ctx context.Context, id string) error
+	CreateCredential(ctx context.Context, credential *Credential) error
+	ListCredentials(ctx context.Context) ([]*Credential, error)
+	GetCredential(ctx context.Context, id string) (*Credential, error)
+	GetCredentialByResourceID(ctx context.Context, resourceID string) ([]*Credential, error)
+	UpdateCredential(ctx context.Context, credential *Credential) error
+	DeleteCredential(ctx context.Context, id string) error
+	RotateCredential(ctx context.Context, id string) error
 }
 
 // PermissionService defines the interface for permission-related operations
 type PermissionService interface {
-	Create(ctx context.Context, permission *Permission) error
-	GetByID(ctx context.Context, id string) (*Permission, error)
-	GetByUserID(ctx context.Context, userID string) ([]*Permission, error)
-	GetByResourceID(ctx context.Context, resourceID string) ([]*Permission, error)
-	Update(ctx context.Context, permission *Permission) error
-	Delete(ctx context.Context, id string) error
+	CreatePermission(ctx context.Context, permission *Permission) error
+	ListPermissions(ctx context.Context) ([]*Permission, error)
+	GetPermission(ctx context.Context, id string) (*Permission, error)
+	GetPermissionByUserID(ctx context.Context, userID string) ([]*Permission, error)
+	GetPermissionByResourceID(ctx context.Context, resourceID string) ([]*Permission, error)
+	UpdatePermission(ctx context.Context, permission *Permission) error
+	DeletePermission(ctx context.Context, id string) error
 	DeleteByUserID(ctx context.Context, userID string) error
 	DeleteByResourceID(ctx context.Context, resourceID string) error
 }
@@ -93,6 +96,7 @@ type SessionService interface {
 	GetActive(ctx context.Context) ([]*Session, error)
 	Update(ctx context.Context, session *Session) error
 	Terminate(ctx context.Context, id string) error
+	List(ctx context.Context) ([]*Session, error)
 }
 
 // SessionRepository defines the interface for session-related data operations
@@ -108,11 +112,13 @@ type SessionRepository interface {
 
 // AccessRequestService defines the interface for access request operations
 type AccessRequestService interface {
-	Create(ctx context.Context, request *AccessRequest) error
-	GetByID(ctx context.Context, id string) (*AccessRequest, error)
-	GetByUserID(ctx context.Context, userID string) ([]*AccessRequest, error)
-	GetByResourceID(ctx context.Context, resourceID string) ([]*AccessRequest, error)
-	GetPending(ctx context.Context) ([]*AccessRequest, error)
+	CreateAccessRequest(ctx context.Context, request *AccessRequest) error
+	ListAccessRequests(ctx context.Context) ([]*AccessRequest, error)
+	GetAccessRequest(ctx context.Context, id string) (*AccessRequest, error)
+	GetAccessRequestByUserID(ctx context.Context, userID string) ([]*AccessRequest, error)
+	GetAccessRequestByResourceID(ctx context.Context, resourceID string) ([]*AccessRequest, error)
+	GetPendingAccessRequests(ctx context.Context) ([]*AccessRequest, error)
+	UpdateAccessRequest(ctx context.Context, request *AccessRequest) error
 	Approve(ctx context.Context, id string, reviewerID string, notes string, expiresAt time.Time) error
 	Deny(ctx context.Context, id string, reviewerID string, notes string) error
 }
@@ -129,12 +135,11 @@ type AccessRequestRepository interface {
 
 // EphemeralCredentialService defines the interface for ephemeral credential operations
 type EphemeralCredentialService interface {
-	Generate(ctx context.Context, userID string, resourceID string, duration time.Duration) (*EphemeralCredential, error)
-	GetByID(ctx context.Context, id string) (*EphemeralCredential, error)
-	GetByToken(ctx context.Context, token string) (*EphemeralCredential, error)
-	MarkAsUsed(ctx context.Context, id string) error
-	RevokeByUserID(ctx context.Context, userID string) error
-	RevokeByResourceID(ctx context.Context, resourceID string) error
+	Create(ctx context.Context, credential *EphemeralCredential) (*EphemeralCredential, error)
+	List(ctx context.Context) ([]*EphemeralCredential, error)
+	GetEphemeralCredential(ctx context.Context, id string) (*EphemeralCredential, error)
+	DeleteEphemeralCredential(ctx context.Context, id string) error
+	MarkAsUsedEphemeralCredential(ctx context.Context, id string) error
 }
 
 // EphemeralCredentialRepository defines the interface for ephemeral credential data operations

@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"secretary/alpha/internal/domain"
 	"secretary/alpha/internal/middleware"
@@ -42,13 +43,18 @@ func (h *SessionHandler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	expiresAt, err := time.Parse(time.RFC3339, req.ExpiresAt)
+	if err != nil {
+		utils.BadRequest(w, "Invalid expires_at format", err.Error())
+		return
+	}
 	session := &domain.Session{
 		UserID:    req.UserID,
 		Username:  req.Username,
-		ExpiresAt: utils.ParseTime(req.ExpiresAt),
+		ExpiresAt: expiresAt,
 	}
 
-	if err := h.sessionService.CreateSession(r.Context(), session); err != nil {
+	if err := h.sessionService.Create(r.Context(), session); err != nil {
 		utils.InternalError(w, "Failed to create session", err.Error())
 		return
 	}
@@ -68,7 +74,7 @@ func (h *SessionHandler) CreateSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SessionHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
-	sessions, err := h.sessionService.ListSessions(r.Context())
+	sessions, err := h.sessionService.List(r.Context())
 	if err != nil {
 		utils.InternalError(w, "Failed to list sessions", err.Error())
 		return
@@ -81,7 +87,7 @@ func (h *SessionHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	session, err := h.sessionService.GetSession(r.Context(), id)
+	session, err := h.sessionService.GetByID(r.Context(), id)
 	if err != nil {
 		utils.NotFound(w, "Session not found")
 		return
@@ -94,7 +100,7 @@ func (h *SessionHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	if err := h.sessionService.DeleteSession(r.Context(), id); err != nil {
+	if err := h.sessionService.Terminate(r.Context(), id); err != nil {
 		utils.InternalError(w, "Failed to delete session", err.Error())
 		return
 	}
@@ -127,13 +133,18 @@ func (h *SessionHandler) ExtendSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	expiresAt, err := time.Parse(time.RFC3339, req.ExpiresAt)
+	if err != nil {
+		utils.BadRequest(w, "Invalid expires_at format", err.Error())
+		return
+	}
 	session := &domain.Session{
 		ID:        id,
-		ExpiresAt: utils.ParseTime(req.ExpiresAt),
+		ExpiresAt: expiresAt,
 	}
 
-	if err := h.sessionService.UpdateSession(r.Context(), session); err != nil {
-		utils.InternalError(w, "Failed to extend session", err.Error())
+	if err := h.sessionService.Update(r.Context(), session); err != nil {
+		utils.InternalError(w, "Failed to update session", err.Error())
 		return
 	}
 

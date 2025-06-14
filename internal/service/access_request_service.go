@@ -94,3 +94,43 @@ func (s *accessRequestService) Deny(ctx context.Context, id string, reviewerID s
 
 	return s.repo.Update(request)
 }
+
+func (s *accessRequestService) CreateAccessRequest(ctx context.Context, request *domain.AccessRequest) error {
+	// Generate UUID if not provided
+	if request.ID == "" {
+		request.ID = uuid.New().String()
+	}
+
+	// Set default values
+	request.Status = "pending"
+	request.RequestedAt = time.Now()
+	request.CreatedAt = time.Now()
+	request.UpdatedAt = time.Now()
+
+	return s.repo.Create(request)
+}
+
+func (s *accessRequestService) GetAccessRequest(ctx context.Context, id string) (*domain.AccessRequest, error) {
+	return s.repo.FindByID(id)
+}
+
+func (s *accessRequestService) ListAccessRequests(ctx context.Context) ([]*domain.AccessRequest, error) {
+	return s.repo.FindByStatus("pending")
+}
+
+func (s *accessRequestService) UpdateAccessRequest(ctx context.Context, request *domain.AccessRequest) error {
+	request.UpdatedAt = time.Now()
+	return s.repo.Update(request)
+}
+
+func (s *accessRequestService) GetAccessRequestByResourceID(ctx context.Context, resourceID string) ([]*domain.AccessRequest, error) {
+	return s.repo.FindByResourceID(resourceID)
+}
+
+func (s *accessRequestService) GetAccessRequestByUserID(ctx context.Context, userID string) ([]*domain.AccessRequest, error) {
+	return s.repo.FindByUserID(userID)
+}
+
+func (s *accessRequestService) GetPendingAccessRequests(ctx context.Context) ([]*domain.AccessRequest, error) {
+	return s.repo.FindByStatus("pending")
+}

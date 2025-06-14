@@ -49,7 +49,13 @@ func (h *EphemeralCredentialHandler) Generate(w http.ResponseWriter, r *http.Req
 		duration = req.Duration * time.Second
 	}
 
-	credential, err := h.ephemeralCredentialService.Generate(r.Context(), req.UserID, req.ResourceID, duration)
+	credential := &domain.EphemeralCredential{
+		UserID:     req.UserID,
+		ResourceID: req.ResourceID,
+		ExpiresAt:  time.Now().Add(duration),
+	}
+
+	credential, err := h.ephemeralCredentialService.Create(r.Context(), credential)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -67,7 +73,7 @@ func (h *EphemeralCredentialHandler) GetByID(w http.ResponseWriter, r *http.Requ
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	credential, err := h.ephemeralCredentialService.GetByID(r.Context(), id)
+	credential, err := h.ephemeralCredentialService.GetEphemeralCredential(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -84,7 +90,7 @@ func (h *EphemeralCredentialHandler) GetByToken(w http.ResponseWriter, r *http.R
 	vars := mux.Vars(r)
 	token := vars["token"]
 
-	credential, err := h.ephemeralCredentialService.GetByToken(r.Context(), token)
+	credential, err := h.ephemeralCredentialService.GetEphemeralCredential(r.Context(), token)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -101,13 +107,13 @@ func (h *EphemeralCredentialHandler) MarkAsUsed(w http.ResponseWriter, r *http.R
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	if err := h.ephemeralCredentialService.MarkAsUsed(r.Context(), id); err != nil {
+	if err := h.ephemeralCredentialService.MarkAsUsedEphemeralCredential(r.Context(), id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Return the updated credential
-	credential, err := h.ephemeralCredentialService.GetByID(r.Context(), id)
+	credential, err := h.ephemeralCredentialService.GetEphemeralCredential(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

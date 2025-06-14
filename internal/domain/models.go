@@ -26,12 +26,12 @@ type Resource struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// Credential represents credentials for accessing a resource
+// Credential represents a credential in the system
 type Credential struct {
 	ID         string    `json:"id"`
 	ResourceID string    `json:"resource_id"`
-	Username   string    `json:"username"`
-	Password   string    `json:"-"` // Password is never exposed in JSON
+	Type       string    `json:"type"`
+	Secret     string    `json:"secret"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
@@ -66,18 +66,21 @@ type Session struct {
 
 // AccessRequest represents a request for access to a resource
 type AccessRequest struct {
-	ID          string    `json:"id"`
-	UserID      string    `json:"user_id"`
-	ResourceID  string    `json:"resource_id"`
-	Reason      string    `json:"reason"`
-	Status      string    `json:"status"` // "pending", "approved", "denied"
-	ReviewerID  string    `json:"reviewer_id,omitempty"`
-	ReviewNotes string    `json:"review_notes,omitempty"`
-	RequestedAt time.Time `json:"requested_at"`
-	ReviewedAt  time.Time `json:"reviewed_at,omitempty"`
-	ExpiresAt   time.Time `json:"expires_at,omitempty"` // When approved access expires
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          string        `json:"id"`
+	ResourceID  string        `json:"resource_id"`
+	UserID      string        `json:"user_id"`
+	Reason      string        `json:"reason"`
+	Duration    time.Duration `json:"duration"`
+	ApproverID  string        `json:"approver_id"`
+	Comment     string        `json:"comment"`
+	Status      string        `json:"status"`
+	RequestedAt time.Time     `json:"requested_at"`
+	ReviewedAt  time.Time     `json:"reviewed_at"`
+	ExpiresAt   time.Time     `json:"expires_at"`
+	ReviewerID  string        `json:"reviewer_id"`
+	ReviewNotes string        `json:"review_notes"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   time.Time     `json:"updated_at"`
 }
 
 // EphemeralCredential represents a temporary credential for accessing a resource
@@ -91,10 +94,6 @@ type EphemeralCredential struct {
 	ExpiresAt  time.Time `json:"expires_at"`
 	CreatedAt  time.Time `json:"created_at"`
 	UsedAt     time.Time `json:"used_at,omitempty"`
-}
-
-// ValidatePassword checks if the provided password matches the user's password
-func (u *User) ValidatePassword(password string) bool {
-	// Implement password validation logic here
-	return u.Password == password
+	Duration   string    `json:"duration"`
+	Used       bool      `json:"used"`
 }

@@ -36,7 +36,7 @@ func (h *PermissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Role:       req.Role,
 	}
 
-	if err := h.permissionService.Create(r.Context(), permission); err != nil {
+	if err := h.permissionService.CreatePermission(r.Context(), permission); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -49,7 +49,7 @@ func (h *PermissionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	permission, err := h.permissionService.GetByID(r.Context(), id)
+	permission, err := h.permissionService.GetPermission(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -63,7 +63,7 @@ func (h *PermissionHandler) GetByUserID(w http.ResponseWriter, r *http.Request) 
 	vars := mux.Vars(r)
 	userID := vars["user_id"]
 
-	permissions, err := h.permissionService.GetByUserID(r.Context(), userID)
+	permissions, err := h.permissionService.GetPermissionByUserID(r.Context(), userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -77,7 +77,7 @@ func (h *PermissionHandler) GetByResourceID(w http.ResponseWriter, r *http.Reque
 	vars := mux.Vars(r)
 	resourceID := vars["resource_id"]
 
-	permissions, err := h.permissionService.GetByResourceID(r.Context(), resourceID)
+	permissions, err := h.permissionService.GetPermissionByResourceID(r.Context(), resourceID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -98,7 +98,7 @@ func (h *PermissionHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	permission.ID = id
-	if err := h.permissionService.Update(r.Context(), &permission); err != nil {
+	if err := h.permissionService.UpdatePermission(r.Context(), &permission); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -111,7 +111,7 @@ func (h *PermissionHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	if err := h.permissionService.Delete(r.Context(), id); err != nil {
+	if err := h.permissionService.DeletePermission(r.Context(), id); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

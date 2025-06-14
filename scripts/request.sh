@@ -2,13 +2,20 @@
 
 BASE_URL="http://localhost:6080"
 
+# Check if admin password is provided
+if [ -z "${ADMIN_PASSWORD:-}" ]; then
+  echo "Error: ADMIN_PASSWORD environment variable not set"
+  echo "Please set ADMIN_PASSWORD to the password shown when starting the server in dev mode"
+  exit 1
+fi
+
 echo "Testing Secretary API..."
 
 # Login
 echo "1. Logging in..."
 LOGIN_RESPONSE=$(curl -s --fail -X POST "$BASE_URL/api/login" \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "securepassword123"}')
+  -d "{\"username\": \"admin\", \"password\": \"$ADMIN_PASSWORD\"}")
 echo $LOGIN_RESPONSE | jq .
 
 # Extract user ID for further requests

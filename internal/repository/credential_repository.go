@@ -3,6 +3,9 @@ package repository
 import (
 	"database/sql"
 	"errors"
+	"time"
+
+	"github.com/google/uuid"
 
 	"secretary/alpha/internal/domain"
 )
@@ -16,15 +19,24 @@ func NewCredentialRepository(db *sql.DB) domain.CredentialRepository {
 }
 
 func (r *credentialRepository) Create(credential *domain.Credential) error {
+	// Generate UUID if not provided
+	if credential.ID == "" {
+		credential.ID = uuid.New().String()
+	}
+
+	// Set timestamps
+	credential.CreatedAt = time.Now()
+	credential.UpdatedAt = time.Now()
+
 	query := `
-		INSERT INTO credentials (id, resource_id, username, password, created_at, updated_at)
+		INSERT INTO credentials (id, resource_id, type, secret, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?)
 	`
 	_, err := r.db.Exec(query,
 		credential.ID,
 		credential.ResourceID,
-		credential.Username,
-		credential.Password,
+		credential.Type,
+		credential.Secret,
 		credential.CreatedAt,
 		credential.UpdatedAt,
 	)
@@ -33,7 +45,7 @@ func (r *credentialRepository) Create(credential *domain.Credential) error {
 
 func (r *credentialRepository) FindByID(id string) (*domain.Credential, error) {
 	query := `
-		SELECT id, resource_id, username, password, created_at, updated_at
+		SELECT id, resource_id, type, secret, created_at, updated_at
 		FROM credentials
 		WHERE id = ?
 	`
@@ -41,8 +53,8 @@ func (r *credentialRepository) FindByID(id string) (*domain.Credential, error) {
 	err := r.db.QueryRow(query, id).Scan(
 		&credential.ID,
 		&credential.ResourceID,
-		&credential.Username,
-		&credential.Password,
+		&credential.Type,
+		&credential.Secret,
 		&credential.CreatedAt,
 		&credential.UpdatedAt,
 	)
@@ -54,7 +66,7 @@ func (r *credentialRepository) FindByID(id string) (*domain.Credential, error) {
 
 func (r *credentialRepository) FindByResourceID(resourceID string) ([]*domain.Credential, error) {
 	query := `
-		SELECT id, resource_id, username, password, created_at, updated_at
+		SELECT id, resource_id, type, secret, created_at, updated_at
 		FROM credentials
 		WHERE resource_id = ?
 		ORDER BY created_at DESC
@@ -71,8 +83,8 @@ func (r *credentialRepository) FindByResourceID(resourceID string) ([]*domain.Cr
 		err := rows.Scan(
 			&credential.ID,
 			&credential.ResourceID,
-			&credential.Username,
-			&credential.Password,
+			&credential.Type,
+			&credential.Secret,
 			&credential.CreatedAt,
 			&credential.UpdatedAt,
 		)
@@ -85,14 +97,16 @@ func (r *credentialRepository) FindByResourceID(resourceID string) ([]*domain.Cr
 }
 
 func (r *credentialRepository) Update(credential *domain.Credential) error {
+	credential.UpdatedAt = time.Now()
 	query := `
 		UPDATE credentials
-		SET username = ?, password = ?, updated_at = ?
+		SET resource_id = ?, type = ?, secret = ?, updated_at = ?
 		WHERE id = ?
 	`
 	_, err := r.db.Exec(query,
-		credential.Username,
-		credential.Password,
+		credential.ResourceID,
+		credential.Type,
+		credential.Secret,
 		credential.UpdatedAt,
 		credential.ID,
 	)

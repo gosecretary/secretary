@@ -110,6 +110,44 @@ func (s *ephemeralCredentialService) RevokeByResourceID(ctx context.Context, res
 	return s.repo.DeleteByResourceID(resourceID)
 }
 
+func (s *ephemeralCredentialService) Create(ctx context.Context, credential *domain.EphemeralCredential) (*domain.EphemeralCredential, error) {
+	if credential.ID == "" {
+		credential.ID = uuid.New().String()
+	}
+	if credential.CreatedAt.IsZero() {
+		credential.CreatedAt = time.Now()
+	}
+	if credential.ExpiresAt.IsZero() {
+		credential.ExpiresAt = time.Now().Add(defaultCredentialLifetime)
+	}
+
+	if err := s.repo.Create(credential); err != nil {
+		return nil, err
+	}
+	return credential, nil
+}
+
+func (s *ephemeralCredentialService) GetEphemeralCredential(ctx context.Context, id string) (*domain.EphemeralCredential, error) {
+	return s.repo.FindByID(id)
+}
+
+func (s *ephemeralCredentialService) DeleteEphemeralCredential(ctx context.Context, id string) error {
+	return s.repo.DeleteByUserID(id)
+}
+
+func (s *ephemeralCredentialService) List(ctx context.Context) ([]*domain.EphemeralCredential, error) {
+	return s.repo.FindByUserID("")
+}
+
+func (s *ephemeralCredentialService) MarkAsUsedEphemeralCredential(ctx context.Context, id string) error {
+	credential, err := s.repo.FindByID(id)
+	if err != nil {
+		return err
+	}
+	credential.UsedAt = time.Now()
+	return s.repo.Update(credential)
+}
+
 // Helper methods for secure random generation
 
 func (s *ephemeralCredentialService) generateUsername() (string, error) {

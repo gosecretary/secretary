@@ -86,3 +86,7 @@ func (s *sessionService) Terminate(ctx context.Context, id string) error {
 
 	return s.repo.Update(session)
 }
+
+func (s *sessionService) List(ctx context.Context) ([]*domain.Session, error) {
+	return s.repo.FindActive() // Using FindActive as a default listing method
+}

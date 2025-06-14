@@ -43,19 +43,20 @@ func (h *EphemeralCredentialHandler) CreateEphemeralCredential(w http.ResponseWr
 	ephemeralCredential := &domain.EphemeralCredential{
 		ResourceID: req.ResourceID,
 		UserID:     req.UserID,
-		Duration:   utils.ParseDuration(req.Duration),
+		Duration:   req.Duration,
 	}
 
-	if err := h.ephemeralCredentialService.CreateEphemeralCredential(r.Context(), ephemeralCredential); err != nil {
+	createdCredential, err := h.ephemeralCredentialService.Create(r.Context(), ephemeralCredential)
+	if err != nil {
 		utils.InternalError(w, "Failed to create ephemeral credential", err.Error())
 		return
 	}
 
-	utils.SuccessResponse(w, "Ephemeral credential created successfully", ephemeralCredential)
+	utils.SuccessResponse(w, "Ephemeral credential created successfully", createdCredential)
 }
 
 func (h *EphemeralCredentialHandler) ListEphemeralCredentials(w http.ResponseWriter, r *http.Request) {
-	ephemeralCredentials, err := h.ephemeralCredentialService.ListEphemeralCredentials(r.Context())
+	ephemeralCredentials, err := h.ephemeralCredentialService.List(r.Context())
 	if err != nil {
 		utils.InternalError(w, "Failed to list ephemeral credentials", err.Error())
 		return

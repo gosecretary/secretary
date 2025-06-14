@@ -19,8 +19,8 @@ func NewCredentialHandler(credentialService domain.CredentialService) *Credentia
 
 type createCredentialRequest struct {
 	ResourceID string `json:"resource_id"`
-	Username   string `json:"username"`
-	Password   string `json:"password"`
+	Type       string `json:"type"`
+	Secret     string `json:"secret"`
 }
 
 type updateCredentialRequest struct {
@@ -37,11 +37,11 @@ func (h *CredentialHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	credential := &domain.Credential{
 		ResourceID: req.ResourceID,
-		Username:   req.Username,
-		Password:   req.Password,
+		Type:       req.Type,
+		Secret:     req.Secret,
 	}
 
-	if err := h.credentialService.Create(r.Context(), credential); err != nil {
+	if err := h.credentialService.CreateCredential(r.Context(), credential); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -54,7 +54,7 @@ func (h *CredentialHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	credential, err := h.credentialService.GetByID(r.Context(), id)
+	credential, err := h.credentialService.GetCredential(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -68,7 +68,7 @@ func (h *CredentialHandler) GetByResourceID(w http.ResponseWriter, r *http.Reque
 	vars := mux.Vars(r)
 	resourceID := vars["resource_id"]
 
-	credentials, err := h.credentialService.GetByResourceID(r.Context(), resourceID)
+	credentials, err := h.credentialService.GetCredentialByResourceID(r.Context(), resourceID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -89,7 +89,7 @@ func (h *CredentialHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	credential.ID = id
-	if err := h.credentialService.Update(r.Context(), &credential); err != nil {
+	if err := h.credentialService.UpdateCredential(r.Context(), &credential); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -102,7 +102,7 @@ func (h *CredentialHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	if err := h.credentialService.Delete(r.Context(), id); err != nil {
+	if err := h.credentialService.DeleteCredential(r.Context(), id); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

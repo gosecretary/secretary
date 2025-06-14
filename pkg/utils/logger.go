@@ -28,7 +28,8 @@ var (
 )
 
 func init() {
-	standardLogger = log.New(os.Stdout, "", log.LstdFlags)
+	// Create logger without timestamp prefix
+	standardLogger = log.New(os.Stdout, "", 0)
 }
 
 // Logger logs a message with the specified level and message

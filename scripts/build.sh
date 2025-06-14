@@ -3,8 +3,9 @@
 set -e
 
 BIN_DIR="./bin"
+VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
 
-echo "Building Secretary..."
+echo "Building Secretary v${VERSION}..."
 
 # Ensure bin directory exists
 mkdir -p "$BIN_DIR"
@@ -13,9 +14,11 @@ mkdir -p "$BIN_DIR"
 go mod tidy
 
 # Build the server
-GOOS=linux GOARCH=amd64 go build -o "$BIN_DIR/secretary" ./cmd/server/main.go
+GOOS=linux GOARCH=amd64 go build -ldflags="-X 'main.Version=${VERSION}'" -o "$BIN_DIR/secretary" ./cmd/secretary/main.go
 
 # Optionally, build a Darwin binary for Mac users
-go build -o "$BIN_DIR/secretary-darwin" ./cmd/server/main.go
+go build -ldflags="-X 'main.Version=${VERSION}'" -o "$BIN_DIR/secretary-darwin" ./cmd/secretary/main.go
 
-echo "Build complete! Executables: $BIN_DIR/secretary, $BIN_DIR/secretary-darwin"
+echo "Build complete! Executables:"
+echo "  - $BIN_DIR/secretary (Linux)"
+echo "  - $BIN_DIR/secretary-darwin (macOS)"

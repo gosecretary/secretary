@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"secretary/alpha/internal/domain"
+	"secretary/alpha/internal/utils"
 )
 
 type userService struct {
@@ -29,6 +30,13 @@ func (s *userService) CreateUser(ctx context.Context, user *domain.User) error {
 		return errors.New("email already exists")
 	}
 
+	// Hash password
+	hashedPassword, err := utils.HashPassword(user.Password)
+	if err != nil {
+		return errors.New("failed to hash password")
+	}
+	user.Password = hashedPassword
+
 	// Set default values
 	user.ID = uuid.New().String()
 	user.Role = "user"
@@ -47,7 +55,7 @@ func (s *userService) Authenticate(ctx context.Context, username, password strin
 	}
 
 	// Validate password
-	if !user.ValidatePassword(password) {
+	if !utils.CheckPasswordHash(password, user.Password) {
 		return nil, errors.New("invalid credentials")
 	}
 

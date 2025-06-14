@@ -3,6 +3,9 @@ package repository
 import (
 	"database/sql"
 	"errors"
+	"time"
+
+	"github.com/google/uuid"
 
 	"secretary/alpha/internal/domain"
 )
@@ -16,14 +19,24 @@ func NewPermissionRepository(db *sql.DB) domain.PermissionRepository {
 }
 
 func (r *permissionRepository) Create(permission *domain.Permission) error {
+	// Generate UUID if not provided
+	if permission.ID == "" {
+		permission.ID = uuid.New().String()
+	}
+
+	// Set timestamps
+	permission.CreatedAt = time.Now()
+	permission.UpdatedAt = time.Now()
+
 	query := `
-		INSERT INTO permissions (id, user_id, resource_id, action, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO permissions (id, user_id, resource_id, role, action, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := r.db.Exec(query,
 		permission.ID,
 		permission.UserID,
 		permission.ResourceID,
+		permission.Role,
 		permission.Action,
 		permission.CreatedAt,
 		permission.UpdatedAt,
@@ -33,7 +46,7 @@ func (r *permissionRepository) Create(permission *domain.Permission) error {
 
 func (r *permissionRepository) FindByID(id string) (*domain.Permission, error) {
 	query := `
-		SELECT id, user_id, resource_id, role, created_at, updated_at
+		SELECT id, user_id, resource_id, role, action, created_at, updated_at
 		FROM permissions
 		WHERE id = ?
 	`
@@ -43,6 +56,7 @@ func (r *permissionRepository) FindByID(id string) (*domain.Permission, error) {
 		&permission.UserID,
 		&permission.ResourceID,
 		&permission.Role,
+		&permission.Action,
 		&permission.CreatedAt,
 		&permission.UpdatedAt,
 	)
@@ -54,7 +68,7 @@ func (r *permissionRepository) FindByID(id string) (*domain.Permission, error) {
 
 func (r *permissionRepository) FindByUserID(userID string) ([]*domain.Permission, error) {
 	query := `
-		SELECT id, user_id, resource_id, role, created_at, updated_at
+		SELECT id, user_id, resource_id, role, action, created_at, updated_at
 		FROM permissions
 		WHERE user_id = ?
 		ORDER BY created_at DESC
@@ -73,6 +87,7 @@ func (r *permissionRepository) FindByUserID(userID string) ([]*domain.Permission
 			&permission.UserID,
 			&permission.ResourceID,
 			&permission.Role,
+			&permission.Action,
 			&permission.CreatedAt,
 			&permission.UpdatedAt,
 		)
@@ -86,7 +101,7 @@ func (r *permissionRepository) FindByUserID(userID string) ([]*domain.Permission
 
 func (r *permissionRepository) FindByResourceID(resourceID string) ([]*domain.Permission, error) {
 	query := `
-		SELECT id, user_id, resource_id, role, created_at, updated_at
+		SELECT id, user_id, resource_id, role, action, created_at, updated_at
 		FROM permissions
 		WHERE resource_id = ?
 		ORDER BY created_at DESC
@@ -105,6 +120,7 @@ func (r *permissionRepository) FindByResourceID(resourceID string) ([]*domain.Pe
 			&permission.UserID,
 			&permission.ResourceID,
 			&permission.Role,
+			&permission.Action,
 			&permission.CreatedAt,
 			&permission.UpdatedAt,
 		)
@@ -117,12 +133,16 @@ func (r *permissionRepository) FindByResourceID(resourceID string) ([]*domain.Pe
 }
 
 func (r *permissionRepository) Update(permission *domain.Permission) error {
+	permission.UpdatedAt = time.Now()
 	query := `
 		UPDATE permissions
-		SET action = ?, updated_at = ?
+		SET user_id = ?, resource_id = ?, role = ?, action = ?, updated_at = ?
 		WHERE id = ?
 	`
 	_, err := r.db.Exec(query,
+		permission.UserID,
+		permission.ResourceID,
+		permission.Role,
 		permission.Action,
 		permission.UpdatedAt,
 		permission.ID,

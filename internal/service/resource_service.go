@@ -33,3 +33,23 @@ func (s *resourceService) Update(ctx context.Context, resource *domain.Resource)
 func (s *resourceService) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(id)
 }
+
+func (s *resourceService) CreateResource(ctx context.Context, resource *domain.Resource) error {
+	return s.repo.Create(resource)
+}
+
+func (s *resourceService) DeleteResource(ctx context.Context, id string) error {
+	return s.repo.Delete(id)
+}
+
+func (s *resourceService) GetResource(ctx context.Context, id string) (*domain.Resource, error) {
+	return s.repo.FindByID(id)
+}
+
+func (s *resourceService) ListResources(ctx context.Context) ([]*domain.Resource, error) {
+	return s.repo.FindAll()
+}
+
+func (s *resourceService) UpdateResource(ctx context.Context, resource *domain.Resource) error {
+	return s.repo.Update(resource)
+}

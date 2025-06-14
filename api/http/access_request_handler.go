@@ -62,7 +62,7 @@ func (h *AccessRequestHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Reason:     req.Reason,
 	}
 
-	if err := h.accessRequestService.Create(r.Context(), accessRequest); err != nil {
+	if err := h.accessRequestService.CreateAccessRequest(r.Context(), accessRequest); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -76,7 +76,7 @@ func (h *AccessRequestHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	accessRequest, err := h.accessRequestService.GetByID(r.Context(), id)
+	accessRequest, err := h.accessRequestService.GetAccessRequest(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -90,7 +90,7 @@ func (h *AccessRequestHandler) GetByUserID(w http.ResponseWriter, r *http.Reques
 	vars := mux.Vars(r)
 	userID := vars["user_id"]
 
-	accessRequests, err := h.accessRequestService.GetByUserID(r.Context(), userID)
+	accessRequests, err := h.accessRequestService.GetAccessRequestByUserID(r.Context(), userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -109,7 +109,7 @@ func (h *AccessRequestHandler) GetByResourceID(w http.ResponseWriter, r *http.Re
 	vars := mux.Vars(r)
 	resourceID := vars["resource_id"]
 
-	accessRequests, err := h.accessRequestService.GetByResourceID(r.Context(), resourceID)
+	accessRequests, err := h.accessRequestService.GetAccessRequestByResourceID(r.Context(), resourceID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -125,7 +125,7 @@ func (h *AccessRequestHandler) GetByResourceID(w http.ResponseWriter, r *http.Re
 }
 
 func (h *AccessRequestHandler) GetPending(w http.ResponseWriter, r *http.Request) {
-	accessRequests, err := h.accessRequestService.GetPending(r.Context())
+	accessRequests, err := h.accessRequestService.GetPendingAccessRequests(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -156,7 +156,7 @@ func (h *AccessRequestHandler) Approve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return the updated request
-	accessRequest, err := h.accessRequestService.GetByID(r.Context(), id)
+	accessRequest, err := h.accessRequestService.GetAccessRequest(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -182,7 +182,7 @@ func (h *AccessRequestHandler) Deny(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return the updated request
-	accessRequest, err := h.accessRequestService.GetByID(r.Context(), id)
+	accessRequest, err := h.accessRequestService.GetAccessRequest(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

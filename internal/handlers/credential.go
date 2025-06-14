@@ -29,14 +29,8 @@ func (h *CredentialHandler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/credentials/{id}/rotate", h.RotateCredential).Methods("POST")
 }
 
-type createCredentialRequest struct {
-	ResourceID string `json:"resource_id"`
-	Type       string `json:"type"`
-	Secret     string `json:"secret"`
-}
-
 func (h *CredentialHandler) CreateCredential(w http.ResponseWriter, r *http.Request) {
-	var req createCredentialRequest
+	var req domain.Credential
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.BadRequest(w, "Invalid request body", err.Error())
 		return

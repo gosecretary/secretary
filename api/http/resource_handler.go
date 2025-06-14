@@ -41,7 +41,7 @@ func (h *ResourceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Type:        req.Type,
 	}
 
-	if err := h.resourceService.Create(r.Context(), resource); err != nil {
+	if err := h.resourceService.CreateResource(r.Context(), resource); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -54,7 +54,7 @@ func (h *ResourceHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	resource, err := h.resourceService.GetByID(r.Context(), id)
+	resource, err := h.resourceService.GetResource(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -65,7 +65,7 @@ func (h *ResourceHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ResourceHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	resources, err := h.resourceService.GetAll(r.Context())
+	resources, err := h.resourceService.ListResources(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -86,7 +86,7 @@ func (h *ResourceHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resource.ID = id
-	if err := h.resourceService.Update(r.Context(), &resource); err != nil {
+	if err := h.resourceService.UpdateResource(r.Context(), &resource); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -99,7 +99,7 @@ func (h *ResourceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	if err := h.resourceService.Delete(r.Context(), id); err != nil {
+	if err := h.resourceService.DeleteResource(r.Context(), id); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
