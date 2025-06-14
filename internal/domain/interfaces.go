@@ -7,8 +7,8 @@ import (
 
 // UserService defines the interface for user-related operations
 type UserService interface {
-	Register(ctx context.Context, user *User) error
-	Login(ctx context.Context, email, password string) (string, error)
+	CreateUser(ctx context.Context, user *User) error
+	Authenticate(ctx context.Context, username, password string) (*User, error)
 	GetByID(ctx context.Context, id string) (*User, error)
 	Update(ctx context.Context, user *User) error
 	Delete(ctx context.Context, id string) error
@@ -147,4 +147,11 @@ type EphemeralCredentialRepository interface {
 	DeleteExpired() error
 	DeleteByUserID(userID string) error
 	DeleteByResourceID(resourceID string) error
+}
+
+// SessionStore defines the interface for session storage operations
+type SessionStore interface {
+	Get(id string) (*Session, error)
+	Set(session *Session) error
+	Delete(id string) error
 }

@@ -51,9 +51,11 @@ type Permission struct {
 type Session struct {
 	ID             string    `json:"id"`
 	UserID         string    `json:"user_id"`
+	Username       string    `json:"username"`
 	ResourceID     string    `json:"resource_id"`
 	StartTime      time.Time `json:"start_time"`
 	EndTime        time.Time `json:"end_time,omitempty"`
+	ExpiresAt      time.Time `json:"expires_at"`
 	Status         string    `json:"status"` // "active", "completed", "terminated"
 	ClientIP       string    `json:"client_ip"`
 	ClientMetadata string    `json:"client_metadata,omitempty"`

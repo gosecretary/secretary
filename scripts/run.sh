@@ -12,4 +12,4 @@ fi
 ./scripts/build.sh
 
 # Run the server
-./bin/secretary 
+./bin/secretary-darwin

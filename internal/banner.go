@@ -1,14 +1,17 @@
 package internal
 
 import (
-	"io/ioutil"
-	"log"
+	"os"
+
+	"secretary/alpha/pkg/utils"
 )
 
-func ShowBanner(filepath string) {
-	content, err := ioutil.ReadFile("banner.txt")
+// PrintBanner prints the application banner
+func PrintBanner() {
+	content, err := os.ReadFile("banner.txt")
 	if err != nil {
-		log.Println("Error reading the banner.txt file:", err)
+		utils.Error("Error reading the banner.txt file: " + err.Error())
+		return
 	}
-	log.Println("\n" + string(content))
+	utils.Info("\n" + string(content))
 }

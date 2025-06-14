@@ -45,7 +45,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Name:     req.Name,
 	}
 
-	if err := h.userService.Register(r.Context(), user); err != nil {
+	if err := h.userService.CreateUser(r.Context(), user); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -61,14 +61,14 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.userService.Login(r.Context(), req.Email, req.Password)
+	user, err := h.userService.Authenticate(r.Context(), req.Email, req.Password)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(loginResponse{Token: token})
+	json.NewEncoder(w).Encode(loginResponse{Token: user.ID})
 }
 
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {

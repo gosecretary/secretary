@@ -12,7 +12,7 @@ import (
 
 	"secretary/alpha/internal/config"
 	"secretary/alpha/internal/middleware"
-	"secretary/alpha/utils"
+	"secretary/alpha/pkg/utils"
 )
 
 type Server struct {
