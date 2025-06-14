@@ -18,3 +18,5 @@ go.work
 sec
 data/**
 **/data/**
+./bin
+./bin/**
