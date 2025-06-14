@@ -67,7 +67,7 @@ func TestAuthHandler_Register(t *testing.T) {
 			tt.mockSetup(mockService)
 
 			// Create handler with mock service
-			handler := NewAuthHandler(mockService)
+			handler := NewUserHandler(mockService)
 
 			// Create request
 			body, _ := json.Marshal(tt.requestBody)
@@ -156,7 +156,7 @@ func TestAuthHandler_Login(t *testing.T) {
 			mockSessionService := new(MockSessionService)
 			tt.mockSetup(mockUserService, mockSessionService)
 
-			handler := NewAuthHandler(mockUserService)
+			handler := NewUserHandler(mockUserService)
 			body, _ := json.Marshal(tt.requestBody)
 			req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
 			w := httptest.NewRecorder()

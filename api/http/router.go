@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"secretary/alpha/internal/domain"
+	"secretary/alpha/internal/handlers"
 	"secretary/alpha/internal/middleware"
 
 	"github.com/gorilla/mux"
@@ -21,15 +22,15 @@ func NewRouter(
 	router := mux.NewRouter()
 
 	// Create handlers
-	userHandler := NewUserHandler(userService)
-	resourceHandler := NewResourceHandler(resourceService)
-	credentialHandler := NewCredentialHandler(credentialService)
-	permissionHandler := NewPermissionHandler(permissionService)
+	userHandler := handlers.NewUserHandler(userService)
+	resourceHandler := handlers.NewResourceHandler(resourceService)
+	credentialHandler := handlers.NewCredentialHandler(credentialService)
+	permissionHandler := handlers.NewPermissionHandler(permissionService)
 
 	// Create new handlers for the additional services
-	sessionHandler := NewSessionHandler(sessionService)
-	accessRequestHandler := NewAccessRequestHandler(accessRequestService)
-	ephemeralCredentialHandler := NewEphemeralCredentialHandler(ephemeralCredentialService)
+	sessionHandler := handlers.NewSessionHandler(sessionService)
+	accessRequestHandler := handlers.NewAccessRequestHandler(accessRequestService)
+	ephemeralCredentialHandler := handlers.NewEphemeralCredentialHandler(ephemeralCredentialService)
 
 	// Public routes
 	router.HandleFunc("/api/register", userHandler.Register).Methods("POST")
@@ -40,13 +41,13 @@ func NewRouter(
 	api.Use(middleware.Auth)
 
 	// User routes
-	api.HandleFunc("/users/{id}", userHandler.GetUser).Methods("GET")
-	api.HandleFunc("/users/{id}", userHandler.UpdateUser).Methods("PUT")
-	api.HandleFunc("/users/{id}", userHandler.DeleteUser).Methods("DELETE")
+	api.HandleFunc("/users/{id}", userHandler.GetByID).Methods("GET")
+	api.HandleFunc("/users/{id}", userHandler.Update).Methods("PUT")
+	api.HandleFunc("/users/{id}", userHandler.Delete).Methods("DELETE")
 
 	// Resource routes
 	api.HandleFunc("/resources", resourceHandler.Create).Methods("POST")
-	api.HandleFunc("/resources", resourceHandler.GetAll).Methods("GET")
+	api.HandleFunc("/resources", resourceHandler.List).Methods("GET")
 	api.HandleFunc("/resources/{id}", resourceHandler.GetByID).Methods("GET")
 	api.HandleFunc("/resources/{id}", resourceHandler.Update).Methods("PUT")
 	api.HandleFunc("/resources/{id}", resourceHandler.Delete).Methods("DELETE")
@@ -67,6 +68,8 @@ func NewRouter(
 	api.HandleFunc("/permissions/{id}", permissionHandler.Delete).Methods("DELETE")
 	api.HandleFunc("/users/{user_id}/permissions", permissionHandler.DeleteByUserID).Methods("DELETE")
 	api.HandleFunc("/resources/{resource_id}/permissions", permissionHandler.DeleteByResourceID).Methods("DELETE")
+	api.HandleFunc("/users/{user_id}/permissions", permissionHandler.DeleteByUserID).Methods("DELETE")
+	api.HandleFunc("/resources/{resource_id}/permissions", permissionHandler.DeleteByResourceID).Methods("DELETE")
 
 	// Session routes
 	api.HandleFunc("/sessions", sessionHandler.GetActive).Methods("GET")
@@ -85,7 +88,7 @@ func NewRouter(
 	api.HandleFunc("/resources/{resource_id}/access-requests", accessRequestHandler.GetByResourceID).Methods("GET")
 
 	// Ephemeral credential routes
-	api.HandleFunc("/ephemeral-credentials", ephemeralCredentialHandler.Generate).Methods("POST")
+	api.HandleFunc("/ephemeral-credentials", ephemeralCredentialHandler.Create).Methods("POST")
 	api.HandleFunc("/ephemeral-credentials/{id}", ephemeralCredentialHandler.GetByID).Methods("GET")
 	api.HandleFunc("/ephemeral-credentials/{id}/use", ephemeralCredentialHandler.MarkAsUsed).Methods("POST")
 	api.HandleFunc("/ephemeral-credentials/token/{token}", ephemeralCredentialHandler.GetByToken).Methods("GET")

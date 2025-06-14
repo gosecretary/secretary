@@ -17,7 +17,7 @@ func NewRouter() *Router {
 }
 
 func (r *Router) RegisterHandlers(
-	authHandler *AuthHandler,
+	authHandler *UserHandler,
 	resourceHandler *ResourceHandler,
 	credentialHandler *CredentialHandler,
 	permissionHandler *PermissionHandler,

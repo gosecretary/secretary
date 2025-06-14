@@ -54,23 +54,29 @@ func RateLimitMiddleware(next http.Handler) http.Handler {
 // SessionMiddleware handles session management
 func SessionMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Get session from cookie
-		cookie, err := r.Cookie("session")
-		if err != nil {
+		// Skip session check for login and health endpoints
+		if r.URL.Path == "/api/login" || r.URL.Path == "/health" {
 			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Get session from cookie
+		cookie, err := r.Cookie(SessionCookieName)
+		if err != nil {
+			utils.Unauthorized(w, "No session cookie found")
 			return
 		}
 
 		// Get session from store
 		session, err := domain.GetSessionStore().Get(cookie.Value)
 		if err != nil {
-			next.ServeHTTP(w, r)
+			utils.Unauthorized(w, "Invalid session")
 			return
 		}
 
 		// Check if session is expired
 		if session.ExpiresAt.Before(time.Now()) {
-			next.ServeHTTP(w, r)
+			utils.Unauthorized(w, "Session expired")
 			return
 		}
 
@@ -137,6 +143,7 @@ func CORS(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -150,17 +157,48 @@ func CORS(next http.Handler) http.Handler {
 // Auth middleware for authentication
 func Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// This is now handled by RateLimitMiddleware
+		// This is now handled by SessionMiddleware
 		next.ServeHTTP(w, r)
 	})
 }
 
 // RBAC middleware for role-based access control
-func RBAC(roles ...string) mux.MiddlewareFunc {
+func RBAC(userService domain.UserService, roles ...string) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// TODO: Implement RBAC
-			// For now, just pass through
+			session := r.Context().Value("session")
+			if session == nil {
+				utils.Unauthorized(w, "Authentication required")
+				return
+			}
+
+			s, ok := session.(*domain.Session)
+			if !ok {
+				utils.Unauthorized(w, "Invalid session")
+				return
+			}
+
+			// Get user from service
+			user, err := userService.GetByID(r.Context(), s.UserID)
+			if err != nil {
+				utils.Unauthorized(w, "User not found")
+				return
+			}
+
+			// Check if user has required role
+			hasRole := false
+			for _, role := range roles {
+				if user.Role == role {
+					hasRole = true
+					break
+				}
+			}
+
+			if !hasRole {
+				utils.Forbidden(w, "Insufficient permissions")
+				return
+			}
+
 			next.ServeHTTP(w, r)
 		})
 	}

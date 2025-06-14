@@ -96,7 +96,7 @@ func TestSessionHandler_GetSession(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// Call handler
-			handler.GetSession(w, req)
+			handler.GetByID(w, req)
 
 			// Assert response
 			assert.Equal(t, tt.expectedStatus, w.Code)
@@ -166,7 +166,7 @@ func TestSessionHandler_DeleteSession(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// Call handler
-			handler.DeleteSession(w, req)
+			handler.Delete(w, req)
 
 			// Assert response
 			assert.Equal(t, tt.expectedStatus, w.Code)

@@ -97,3 +97,15 @@ type EphemeralCredential struct {
 	Duration   string    `json:"duration"`
 	Used       bool      `json:"used"`
 }
+
+// AuditLog represents an audit log entry
+type AuditLog struct {
+	ID         string    `json:"id"`
+	UserID     string    `json:"user_id"`
+	ResourceID string    `json:"resource_id"`
+	Action     string    `json:"action"`
+	Details    string    `json:"details"`
+	IP         string    `json:"ip"`
+	UserAgent  string    `json:"user_agent"`
+	CreatedAt  time.Time `json:"created_at"`
+}

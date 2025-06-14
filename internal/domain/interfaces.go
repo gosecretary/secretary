@@ -160,3 +160,13 @@ type SessionStore interface {
 	Set(session *Session) error
 	Delete(id string) error
 }
+
+// AuditLogService defines the interface for audit log operations
+type AuditLogService interface {
+	List(ctx context.Context) ([]*AuditLog, error)
+	GetByID(ctx context.Context, id string) (*AuditLog, error)
+	GetByUserID(ctx context.Context, userID string) ([]*AuditLog, error)
+	GetByResourceID(ctx context.Context, resourceID string) ([]*AuditLog, error)
+	GetByAction(ctx context.Context, action string) ([]*AuditLog, error)
+	GetByDateRange(ctx context.Context, startDate, endDate time.Time) ([]*AuditLog, error)
+}

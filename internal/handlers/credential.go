@@ -21,16 +21,23 @@ func NewCredentialHandler(credentialService domain.CredentialService) *Credentia
 }
 
 func (h *CredentialHandler) RegisterRoutes(r *mux.Router) {
-	r.HandleFunc("/api/credentials", h.CreateCredential).Methods("POST")
-	r.HandleFunc("/api/credentials", h.ListCredentials).Methods("GET")
-	r.HandleFunc("/api/credentials/{id}", h.GetCredential).Methods("GET")
-	r.HandleFunc("/api/credentials/{id}", h.UpdateCredential).Methods("PUT")
-	r.HandleFunc("/api/credentials/{id}", h.DeleteCredential).Methods("DELETE")
-	r.HandleFunc("/api/credentials/{id}/rotate", h.RotateCredential).Methods("POST")
+	r.HandleFunc("/api/credentials", h.Create).Methods("POST")
+	r.HandleFunc("/api/credentials", h.List).Methods("GET")
+	r.HandleFunc("/api/credentials/{id}", h.GetByID).Methods("GET")
+	r.HandleFunc("/api/credentials/{id}", h.Update).Methods("PUT")
+	r.HandleFunc("/api/credentials/{id}", h.Delete).Methods("DELETE")
+	r.HandleFunc("/api/credentials/{id}/rotate", h.Rotate).Methods("POST")
+	r.HandleFunc("/api/credentials/resource/{resource_id}", h.GetByResourceID).Methods("GET")
 }
 
-func (h *CredentialHandler) CreateCredential(w http.ResponseWriter, r *http.Request) {
-	var req domain.Credential
+type createCredentialRequest struct {
+	ResourceID string `json:"resource_id"`
+	Type       string `json:"type"`
+	Secret     string `json:"secret"`
+}
+
+func (h *CredentialHandler) Create(w http.ResponseWriter, r *http.Request) {
+	var req createCredentialRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.BadRequest(w, "Invalid request body", err.Error())
 		return
@@ -50,7 +57,7 @@ func (h *CredentialHandler) CreateCredential(w http.ResponseWriter, r *http.Requ
 	utils.SuccessResponse(w, "Credential created successfully", credential)
 }
 
-func (h *CredentialHandler) ListCredentials(w http.ResponseWriter, r *http.Request) {
+func (h *CredentialHandler) List(w http.ResponseWriter, r *http.Request) {
 	credentials, err := h.credentialService.ListCredentials(r.Context())
 	if err != nil {
 		utils.InternalError(w, "Failed to list credentials", err.Error())
@@ -60,7 +67,7 @@ func (h *CredentialHandler) ListCredentials(w http.ResponseWriter, r *http.Reque
 	utils.SuccessResponse(w, "Credentials retrieved successfully", credentials)
 }
 
-func (h *CredentialHandler) GetCredential(w http.ResponseWriter, r *http.Request) {
+func (h *CredentialHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -74,12 +81,11 @@ func (h *CredentialHandler) GetCredential(w http.ResponseWriter, r *http.Request
 }
 
 type updateCredentialRequest struct {
-	ResourceID string `json:"resource_id"`
-	Type       string `json:"type"`
-	Secret     string `json:"secret"`
+	Type   string `json:"type,omitempty"`
+	Secret string `json:"secret,omitempty"`
 }
 
-func (h *CredentialHandler) UpdateCredential(w http.ResponseWriter, r *http.Request) {
+func (h *CredentialHandler) Update(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -89,11 +95,17 @@ func (h *CredentialHandler) UpdateCredential(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	credential := &domain.Credential{
-		ID:         id,
-		ResourceID: req.ResourceID,
-		Type:       req.Type,
-		Secret:     req.Secret,
+	credential, err := h.credentialService.GetCredential(r.Context(), id)
+	if err != nil {
+		utils.NotFound(w, "Credential not found")
+		return
+	}
+
+	if req.Type != "" {
+		credential.Type = req.Type
+	}
+	if req.Secret != "" {
+		credential.Secret = req.Secret
 	}
 
 	if err := h.credentialService.UpdateCredential(r.Context(), credential); err != nil {
@@ -104,7 +116,7 @@ func (h *CredentialHandler) UpdateCredential(w http.ResponseWriter, r *http.Requ
 	utils.SuccessResponse(w, "Credential updated successfully", credential)
 }
 
-func (h *CredentialHandler) DeleteCredential(w http.ResponseWriter, r *http.Request) {
+func (h *CredentialHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -116,7 +128,7 @@ func (h *CredentialHandler) DeleteCredential(w http.ResponseWriter, r *http.Requ
 	utils.SuccessResponse(w, "Credential deleted successfully", nil)
 }
 
-func (h *CredentialHandler) RotateCredential(w http.ResponseWriter, r *http.Request) {
+func (h *CredentialHandler) Rotate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -125,5 +137,25 @@ func (h *CredentialHandler) RotateCredential(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	utils.SuccessResponse(w, "Credential rotated successfully", nil)
+	// Get updated credential
+	credential, err := h.credentialService.GetCredential(r.Context(), id)
+	if err != nil {
+		utils.InternalError(w, "Failed to get updated credential", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(w, "Credential rotated successfully", credential)
+}
+
+func (h *CredentialHandler) GetByResourceID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	resourceID := vars["resource_id"]
+
+	credentials, err := h.credentialService.GetCredentialByResourceID(r.Context(), resourceID)
+	if err != nil {
+		utils.InternalError(w, "Failed to get resource credentials", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(w, "Resource credentials retrieved successfully", credentials)
 }

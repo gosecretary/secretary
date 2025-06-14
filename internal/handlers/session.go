@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"secretary/alpha/internal/domain"
-	"secretary/alpha/internal/middleware"
 	"secretary/alpha/pkg/utils"
 
 	"github.com/gorilla/mux"
@@ -23,57 +22,57 @@ func NewSessionHandler(sessionService domain.SessionService) *SessionHandler {
 }
 
 func (h *SessionHandler) RegisterRoutes(r *mux.Router) {
-	r.HandleFunc("/api/sessions", h.CreateSession).Methods("POST")
-	r.HandleFunc("/api/sessions", h.ListSessions).Methods("GET")
-	r.HandleFunc("/api/sessions/{id}", h.GetSession).Methods("GET")
-	r.HandleFunc("/api/sessions/{id}", h.DeleteSession).Methods("DELETE")
-	r.HandleFunc("/api/sessions/{id}/extend", h.ExtendSession).Methods("POST")
+	r.HandleFunc("/api/sessions", h.Create).Methods("POST")
+	r.HandleFunc("/api/sessions", h.List).Methods("GET")
+	r.HandleFunc("/api/sessions/{id}", h.GetByID).Methods("GET")
+	r.HandleFunc("/api/sessions/{id}", h.Update).Methods("PUT")
+	r.HandleFunc("/api/sessions/{id}", h.Delete).Methods("DELETE")
+	r.HandleFunc("/api/sessions/{id}/terminate", h.Terminate).Methods("POST")
+	r.HandleFunc("/api/sessions/user/{user_id}", h.GetByUserID).Methods("GET")
+	r.HandleFunc("/api/sessions/resource/{resource_id}", h.GetByResourceID).Methods("GET")
+	r.HandleFunc("/api/sessions/active", h.GetActive).Methods("GET")
 }
 
 type createSessionRequest struct {
-	UserID    string `json:"user_id"`
-	Username  string `json:"username"`
-	ExpiresAt string `json:"expires_at"`
+	ResourceID     string `json:"resource_id"`
+	ClientIP       string `json:"client_ip"`
+	ClientMetadata string `json:"client_metadata,omitempty"`
 }
 
-func (h *SessionHandler) CreateSession(w http.ResponseWriter, r *http.Request) {
+func (h *SessionHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createSessionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.BadRequest(w, "Invalid request body", err.Error())
 		return
 	}
 
-	expiresAt, err := time.Parse(time.RFC3339, req.ExpiresAt)
-	if err != nil {
-		utils.BadRequest(w, "Invalid expires_at format", err.Error())
+	// Get user ID from session
+	session := r.Context().Value("session").(*domain.Session)
+	if session == nil {
+		utils.Unauthorized(w, "No active session")
 		return
 	}
-	session := &domain.Session{
-		UserID:    req.UserID,
-		Username:  req.Username,
-		ExpiresAt: expiresAt,
+
+	newSession := &domain.Session{
+		UserID:         session.UserID,
+		ResourceID:     req.ResourceID,
+		StartTime:      time.Now(),
+		Status:         "active",
+		ClientIP:       req.ClientIP,
+		ClientMetadata: req.ClientMetadata,
+		ExpiresAt:      time.Now().Add(8 * time.Hour), // Default session duration
 	}
 
-	if err := h.sessionService.Create(r.Context(), session); err != nil {
+	err := h.sessionService.Create(r.Context(), newSession)
+	if err != nil {
 		utils.InternalError(w, "Failed to create session", err.Error())
 		return
 	}
 
-	// Set session cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     middleware.SessionCookieName,
-		Value:    session.ID,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-		Expires:  session.ExpiresAt,
-	})
-
-	utils.SuccessResponse(w, "Session created successfully", session)
+	utils.SuccessResponse(w, "Session created successfully", newSession)
 }
 
-func (h *SessionHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
+func (h *SessionHandler) List(w http.ResponseWriter, r *http.Request) {
 	sessions, err := h.sessionService.List(r.Context())
 	if err != nil {
 		utils.InternalError(w, "Failed to list sessions", err.Error())
@@ -83,7 +82,7 @@ func (h *SessionHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, "Sessions retrieved successfully", sessions)
 }
 
-func (h *SessionHandler) GetSession(w http.ResponseWriter, r *http.Request) {
+func (h *SessionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -96,7 +95,26 @@ func (h *SessionHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, "Session retrieved successfully", session)
 }
 
-func (h *SessionHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
+func (h *SessionHandler) Update(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	var session domain.Session
+	if err := json.NewDecoder(r.Body).Decode(&session); err != nil {
+		utils.BadRequest(w, "Invalid request body", err.Error())
+		return
+	}
+
+	session.ID = id
+	if err := h.sessionService.Update(r.Context(), &session); err != nil {
+		utils.InternalError(w, "Failed to update session", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(w, "Session updated successfully", session)
+}
+
+func (h *SessionHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -105,59 +123,53 @@ func (h *SessionHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Clear session cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     middleware.SessionCookieName,
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   -1,
-	})
-
 	utils.SuccessResponse(w, "Session deleted successfully", nil)
 }
 
-type extendSessionRequest struct {
-	ExpiresAt string `json:"expires_at"`
-}
-
-func (h *SessionHandler) ExtendSession(w http.ResponseWriter, r *http.Request) {
+func (h *SessionHandler) Terminate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	var req extendSessionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.BadRequest(w, "Invalid request body", err.Error())
+	if err := h.sessionService.Terminate(r.Context(), id); err != nil {
+		utils.InternalError(w, "Failed to terminate session", err.Error())
 		return
 	}
 
-	expiresAt, err := time.Parse(time.RFC3339, req.ExpiresAt)
+	utils.SuccessResponse(w, "Session terminated successfully", nil)
+}
+
+func (h *SessionHandler) GetByUserID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userID := vars["user_id"]
+
+	sessions, err := h.sessionService.GetByUserID(r.Context(), userID)
 	if err != nil {
-		utils.BadRequest(w, "Invalid expires_at format", err.Error())
-		return
-	}
-	session := &domain.Session{
-		ID:        id,
-		ExpiresAt: expiresAt,
-	}
-
-	if err := h.sessionService.Update(r.Context(), session); err != nil {
-		utils.InternalError(w, "Failed to update session", err.Error())
+		utils.InternalError(w, "Failed to get user sessions", err.Error())
 		return
 	}
 
-	// Update session cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     middleware.SessionCookieName,
-		Value:    session.ID,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-		Expires:  session.ExpiresAt,
-	})
+	utils.SuccessResponse(w, "User sessions retrieved successfully", sessions)
+}
 
-	utils.SuccessResponse(w, "Session extended successfully", session)
+func (h *SessionHandler) GetByResourceID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	resourceID := vars["resource_id"]
+
+	sessions, err := h.sessionService.GetByResourceID(r.Context(), resourceID)
+	if err != nil {
+		utils.InternalError(w, "Failed to get resource sessions", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(w, "Resource sessions retrieved successfully", sessions)
+}
+
+func (h *SessionHandler) GetActive(w http.ResponseWriter, r *http.Request) {
+	sessions, err := h.sessionService.GetActive(r.Context())
+	if err != nil {
+		utils.InternalError(w, "Failed to get active sessions", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(w, "Active sessions retrieved successfully", sessions)
 }

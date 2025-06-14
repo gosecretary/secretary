@@ -91,7 +91,7 @@ func TestUserHandler_CreateUser(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// Call handler
-			handler.CreateUser(w, req)
+			handler.Register(w, req)
 
 			// Assert response
 			assert.Equal(t, tt.expectedStatus, w.Code)
@@ -175,7 +175,7 @@ func TestUserHandler_GetUser(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// Call handler
-			handler.GetUser(w, req)
+			handler.GetByID(w, req)
 
 			// Assert response
 			assert.Equal(t, tt.expectedStatus, w.Code)

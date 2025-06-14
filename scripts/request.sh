@@ -19,14 +19,14 @@ LOGIN_RESPONSE=$(curl -s --fail -X POST "$BASE_URL/api/login" \
 echo $LOGIN_RESPONSE | jq .
 
 # Extract user ID for further requests
-USER_ID=$(echo $LOGIN_RESPONSE | jq -r '.id')
+USER_ID=$(echo $LOGIN_RESPONSE | jq -r '.data.user.id')
 echo "User ID: $USER_ID"
 
 echo ""
 
 # Create a resource
 echo "2. Creating a resource..."
-RESOURCE_RESPONSE=$(curl -s --fail -X POST "$BASE_URL/api/resources" \
+RESOURCE_RESPONSE=$(curl -v -X POST "$BASE_URL/api/resources" \
   -H "Content-Type: application/json" \
   -d '{"name": "Production Database", "description": "Main production PostgreSQL database"}')
 echo $RESOURCE_RESPONSE | jq .

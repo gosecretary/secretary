@@ -113,7 +113,7 @@ func runServer() {
 	}
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userService)
+	userHandler := handlers.NewUserHandler(userService)
 	resourceHandler := handlers.NewResourceHandler(resourceService)
 	credentialHandler := handlers.NewCredentialHandler(credentialService)
 	permissionHandler := handlers.NewPermissionHandler(permissionService)
@@ -122,7 +122,7 @@ func runServer() {
 	// Initialize router
 	router := handlers.NewRouter()
 	router.RegisterHandlers(
-		authHandler,
+		userHandler,
 		resourceHandler,
 		credentialHandler,
 		permissionHandler,
