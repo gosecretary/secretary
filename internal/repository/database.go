@@ -34,6 +34,7 @@ func runMigrations(db *sql.DB) error {
 		username TEXT NOT NULL UNIQUE,
 		email TEXT NOT NULL UNIQUE,
 		password TEXT NOT NULL,
+		name TEXT,
 		role TEXT NOT NULL DEFAULT 'user',
 		created_at DATETIME NOT NULL,
 		updated_at DATETIME NOT NULL
@@ -51,8 +52,10 @@ func runMigrations(db *sql.DB) error {
 	CREATE TABLE IF NOT EXISTS credentials (
 		id TEXT PRIMARY KEY,
 		resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
-		username TEXT NOT NULL,
-		password TEXT NOT NULL,
+		type TEXT,
+		secret TEXT,
+		username TEXT,
+		password TEXT,
 		created_at DATETIME NOT NULL,
 		updated_at DATETIME NOT NULL
 	);
@@ -61,6 +64,7 @@ func runMigrations(db *sql.DB) error {
 		id TEXT PRIMARY KEY,
 		user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 		resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+		role TEXT,
 		action TEXT NOT NULL,
 		created_at DATETIME NOT NULL,
 		updated_at DATETIME NOT NULL,
@@ -120,42 +124,62 @@ func runMigrations(db *sql.DB) error {
 }
 
 func runAdditionalMigrations(db *sql.DB) error {
-	// Check if 'type' column exists in resources table, if not add it
-	var columnExists bool
-	err := db.QueryRow("PRAGMA table_info(resources)").Scan()
-	if err == nil {
-		// Table exists, check for type column
-		rows, err := db.Query("PRAGMA table_info(resources)")
+	// List of columns to check and add if missing
+	migrations := []struct {
+		table      string
+		column     string
+		definition string
+	}{
+		{"users", "name", "TEXT"},
+		{"resources", "type", "TEXT"},
+		{"credentials", "type", "TEXT"},
+		{"credentials", "secret", "TEXT"},
+		{"permissions", "role", "TEXT"},
+	}
+
+	for _, migration := range migrations {
+		exists, err := columnExists(db, migration.table, migration.column)
 		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var cid int
-			var name, dataType string
-			var notNull, pk bool
-			var defaultValue interface{}
-
-			err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk)
-			if err != nil {
-				return err
-			}
-
-			if name == "type" {
-				columnExists = true
-				break
-			}
+			return fmt.Errorf("failed to check if column %s.%s exists: %w", migration.table, migration.column, err)
 		}
 
-		// Add type column if it doesn't exist
-		if !columnExists {
-			_, err = db.Exec("ALTER TABLE resources ADD COLUMN type TEXT")
+		if !exists {
+			alterSQL := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", migration.table, migration.column, migration.definition)
+			_, err = db.Exec(alterSQL)
 			if err != nil {
-				return fmt.Errorf("failed to add type column to resources table: %w", err)
+				return fmt.Errorf("failed to add column %s to table %s: %w", migration.column, migration.table, err)
 			}
+			fmt.Printf("Added column %s.%s\n", migration.table, migration.column)
 		}
 	}
 
 	return nil
+}
+
+// columnExists checks if a column exists in a table
+func columnExists(db *sql.DB, tableName, columnName string) (bool, error) {
+	query := "PRAGMA table_info(" + tableName + ")"
+	rows, err := db.Query(query)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cid int
+		var name, dataType string
+		var notNull, pk bool
+		var defaultValue interface{}
+
+		err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk)
+		if err != nil {
+			return false, err
+		}
+
+		if name == columnName {
+			return true, nil
+		}
+	}
+
+	return false, rows.Err()
 }

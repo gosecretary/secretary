@@ -240,7 +240,7 @@ func (s *proxyService) handleConnection(ctx context.Context, proxy *ProxyConnect
 	defer clientConn.Close()
 
 	// Connect to target server
-	targetConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", proxy.RemoteHost, proxy.RemotePort))
+	targetConn, err := net.Dial("tcp", net.JoinHostPort(proxy.RemoteHost, fmt.Sprintf("%d", proxy.RemotePort)))
 	if err != nil {
 		utils.Errorf("Failed to connect to target %s:%d: %v", proxy.RemoteHost, proxy.RemotePort, err)
 		return
