@@ -153,6 +153,15 @@ secretary/
    # through the Secretary proxy
    ```
 
+## API Documentation
+
+Interactive API documentation is available when running the Secretary server:
+
+- **Swagger UI**: http://localhost:6080/docs
+- **OpenAPI Spec**: http://localhost:6080/docs/swagger.yaml
+
+For detailed API documentation, examples, and usage instructions, see [docs/README.md](docs/README.md).
+
 ## API Endpoints
 
 ### Public Endpoints

@@ -170,3 +170,51 @@ type AuditLogService interface {
 	GetByAction(ctx context.Context, action string) ([]*AuditLog, error)
 	GetByDateRange(ctx context.Context, startDate, endDate time.Time) ([]*AuditLog, error)
 }
+
+// SessionCommandService defines the interface for session command operations
+type SessionCommandService interface {
+	RecordCommand(ctx context.Context, command *SessionCommand) error
+	GetSessionCommands(ctx context.Context, sessionID string) ([]*SessionCommand, error)
+	GetCommandsByUser(ctx context.Context, userID string) ([]*SessionCommand, error)
+	GetCommandsByResource(ctx context.Context, resourceID string) ([]*SessionCommand, error)
+	GetHighRiskCommands(ctx context.Context) ([]*SessionCommand, error)
+	AnalyzeCommand(ctx context.Context, command string, commandType string) (risk string, shouldBlock bool, err error)
+}
+
+// SessionRecordingService defines the interface for session recording operations
+type SessionRecordingService interface {
+	StartRecording(ctx context.Context, sessionID string) (*SessionRecording, error)
+	StopRecording(ctx context.Context, sessionID string) error
+	GetRecording(ctx context.Context, sessionID string) (*SessionRecording, error)
+	GetRecordingFile(ctx context.Context, recordingID string) ([]byte, error)
+	DeleteRecording(ctx context.Context, recordingID string) error
+	ListRecordings(ctx context.Context, userID string) ([]*SessionRecording, error)
+}
+
+// ProxyService defines the interface for proxy operations
+type ProxyService interface {
+	CreateProxy(ctx context.Context, sessionID string, protocol string, remoteHost string, remotePort int) (*ProxyConnection, error)
+	StartProxy(ctx context.Context, proxyID string) (localPort int, err error)
+	StopProxy(ctx context.Context, proxyID string) error
+	GetActiveProxies(ctx context.Context) ([]*ProxyConnection, error)
+	GetProxyBySession(ctx context.Context, sessionID string) (*ProxyConnection, error)
+	UpdateProxyStats(ctx context.Context, proxyID string, bytesIn, bytesOut int64) error
+}
+
+// SecurityAlertService defines the interface for security alert operations
+type SecurityAlertService interface {
+	CreateAlert(ctx context.Context, alert *SecurityAlert) error
+	GetAlerts(ctx context.Context, sessionID string) ([]*SecurityAlert, error)
+	GetAlertsByUser(ctx context.Context, userID string) ([]*SecurityAlert, error)
+	GetAlertsBySeverity(ctx context.Context, severity string) ([]*SecurityAlert, error)
+	MarkAlertAsReviewed(ctx context.Context, alertID string) error
+}
+
+// SessionMonitorService defines the interface for real-time session monitoring
+type SessionMonitorService interface {
+	StartMonitoring(ctx context.Context, sessionID string) error
+	StopMonitoring(ctx context.Context, sessionID string) error
+	GetLiveSession(ctx context.Context, sessionID string) (*Session, error)
+	InterruptSession(ctx context.Context, sessionID string, reason string) error
+	GetSessionMetrics(ctx context.Context, sessionID string) (map[string]interface{}, error)
+}

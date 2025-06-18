@@ -33,6 +33,10 @@ func (r *Router) RegisterHandlers(
 	// Add health check handler
 	healthHandler := NewHealthHandler()
 	healthHandler.RegisterRoutes(r.router)
+
+	// Add documentation handler
+	docsHandler := NewDocsHandler()
+	docsHandler.RegisterRoutes(r.router)
 }
 
 func (r *Router) Use(middleware func(http.Handler) http.Handler) {

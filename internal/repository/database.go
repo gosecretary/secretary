@@ -43,6 +43,7 @@ func runMigrations(db *sql.DB) error {
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL,
 		description TEXT,
+		type TEXT,
 		created_at DATETIME NOT NULL,
 		updated_at DATETIME NOT NULL
 	);
@@ -109,5 +110,52 @@ func runMigrations(db *sql.DB) error {
 	`
 
 	_, err := db.Exec(createTablesSQL)
+	if err != nil {
+		return err
+	}
+
+	// Run additional migrations for existing databases
+	err = runAdditionalMigrations(db)
 	return err
+}
+
+func runAdditionalMigrations(db *sql.DB) error {
+	// Check if 'type' column exists in resources table, if not add it
+	var columnExists bool
+	err := db.QueryRow("PRAGMA table_info(resources)").Scan()
+	if err == nil {
+		// Table exists, check for type column
+		rows, err := db.Query("PRAGMA table_info(resources)")
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var cid int
+			var name, dataType string
+			var notNull, pk bool
+			var defaultValue interface{}
+
+			err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk)
+			if err != nil {
+				return err
+			}
+
+			if name == "type" {
+				columnExists = true
+				break
+			}
+		}
+
+		// Add type column if it doesn't exist
+		if !columnExists {
+			_, err = db.Exec("ALTER TABLE resources ADD COLUMN type TEXT")
+			if err != nil {
+				return fmt.Errorf("failed to add type column to resources table: %w", err)
+			}
+		}
+	}
+
+	return nil
 }

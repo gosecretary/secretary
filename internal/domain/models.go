@@ -109,3 +109,66 @@ type AuditLog struct {
 	UserAgent  string    `json:"user_agent"`
 	CreatedAt  time.Time `json:"created_at"`
 }
+
+// SessionCommand represents a command executed during a session
+type SessionCommand struct {
+	ID          string    `json:"id"`
+	SessionID   string    `json:"session_id"`
+	UserID      string    `json:"user_id"`
+	ResourceID  string    `json:"resource_id"`
+	Command     string    `json:"command"`
+	CommandType string    `json:"command_type"` // "sql", "ssh", "shell", etc.
+	Response    string    `json:"response,omitempty"`
+	Status      string    `json:"status"` // "executed", "blocked", "failed"
+	Risk        string    `json:"risk"`   // "low", "medium", "high", "critical"
+	Timestamp   time.Time `json:"timestamp"`
+	Duration    int64     `json:"duration_ms"` // Command execution time in milliseconds
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// SessionRecording represents a complete session recording
+type SessionRecording struct {
+	ID            string    `json:"id"`
+	SessionID     string    `json:"session_id"`
+	UserID        string    `json:"user_id"`
+	ResourceID    string    `json:"resource_id"`
+	RecordingPath string    `json:"recording_path"` // Path to the recording file
+	Format        string    `json:"format"`         // "asciinema", "text", "binary"
+	Size          int64     `json:"size"`           // File size in bytes
+	Duration      int64     `json:"duration"`       // Session duration in seconds
+	CommandCount  int       `json:"command_count"`  // Total commands executed
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// ProxyConnection represents an active proxy connection
+type ProxyConnection struct {
+	ID           string    `json:"id"`
+	SessionID    string    `json:"session_id"`
+	UserID       string    `json:"user_id"`
+	ResourceID   string    `json:"resource_id"`
+	Protocol     string    `json:"protocol"`    // "ssh", "mysql", "postgres", etc.
+	LocalPort    int       `json:"local_port"`  // Local proxy port
+	RemoteHost   string    `json:"remote_host"` // Target resource host
+	RemotePort   int       `json:"remote_port"` // Target resource port
+	Status       string    `json:"status"`      // "active", "closed", "error"
+	BytesIn      int64     `json:"bytes_in"`    // Bytes received from client
+	BytesOut     int64     `json:"bytes_out"`   // Bytes sent to target
+	LastActivity time.Time `json:"last_activity"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+// SecurityAlert represents a security alert during a session
+type SecurityAlert struct {
+	ID          string    `json:"id"`
+	SessionID   string    `json:"session_id"`
+	CommandID   string    `json:"command_id,omitempty"`
+	UserID      string    `json:"user_id"`
+	ResourceID  string    `json:"resource_id"`
+	AlertType   string    `json:"alert_type"` // "suspicious_command", "data_exfiltration", "privilege_escalation"
+	Severity    string    `json:"severity"`   // "low", "medium", "high", "critical"
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	RawData     string    `json:"raw_data"` // The actual command or data that triggered the alert
+	Action      string    `json:"action"`   // "logged", "blocked", "terminated"
+	CreatedAt   time.Time `json:"created_at"`
+}
