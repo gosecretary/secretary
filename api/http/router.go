@@ -32,13 +32,19 @@ func NewRouter(
 	accessRequestHandler := handlers.NewAccessRequestHandler(accessRequestService)
 	ephemeralCredentialHandler := handlers.NewEphemeralCredentialHandler(ephemeralCredentialService)
 
-	// Public routes
-	router.HandleFunc("/api/register", userHandler.Register).Methods("POST")
+	// Public routes - ONLY health and login should be public
 	router.HandleFunc("/api/login", userHandler.Login).Methods("POST")
+	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}).Methods("GET")
 
-	// Protected routes
+	// Protected routes - All other endpoints require authentication
 	api := router.PathPrefix("/api").Subrouter()
-	api.Use(middleware.Auth)
+	api.Use(middleware.SessionMiddleware)
+	api.Use(middleware.RateLimitMiddleware)
+
+	// Register endpoint - now protected (requires authentication)
+	api.HandleFunc("/register", userHandler.Register).Methods("POST")
 
 	// User routes
 	api.HandleFunc("/users/{id}", userHandler.GetByID).Methods("GET")
@@ -68,8 +74,6 @@ func NewRouter(
 	api.HandleFunc("/permissions/{id}", permissionHandler.Delete).Methods("DELETE")
 	api.HandleFunc("/users/{user_id}/permissions", permissionHandler.DeleteByUserID).Methods("DELETE")
 	api.HandleFunc("/resources/{resource_id}/permissions", permissionHandler.DeleteByResourceID).Methods("DELETE")
-	api.HandleFunc("/users/{user_id}/permissions", permissionHandler.DeleteByUserID).Methods("DELETE")
-	api.HandleFunc("/resources/{resource_id}/permissions", permissionHandler.DeleteByResourceID).Methods("DELETE")
 
 	// Session routes
 	api.HandleFunc("/sessions", sessionHandler.GetActive).Methods("GET")
@@ -92,11 +96,6 @@ func NewRouter(
 	api.HandleFunc("/ephemeral-credentials/{id}", ephemeralCredentialHandler.GetByID).Methods("GET")
 	api.HandleFunc("/ephemeral-credentials/{id}/use", ephemeralCredentialHandler.MarkAsUsed).Methods("POST")
 	api.HandleFunc("/ephemeral-credentials/token/{token}", ephemeralCredentialHandler.GetByToken).Methods("GET")
-
-	// Health check
-	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}).Methods("GET")
 
 	return router
 }

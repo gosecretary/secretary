@@ -19,33 +19,12 @@ const (
 // RateLimitMiddleware implements rate limiting for API endpoints
 func RateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Allow public access to login and health endpoints
-		if r.URL.Path == "/api/login" || r.URL.Path == "/health" {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		// For register endpoint, check if user is admin
-		if r.URL.Path == "/api/register" {
-			session := r.Context().Value("session")
-			if session == nil {
-				utils.Unauthorized(w, "Authentication required")
-				return
-			}
-
-			s, ok := session.(*domain.Session)
-			if !ok || s.Username != "admin" {
-				utils.Forbidden(w, "Admin access required")
-				return
-			}
-		}
-
-		// For all other endpoints, require authentication
-		session := r.Context().Value("session")
-		if session == nil {
-			utils.Unauthorized(w, "Authentication required")
-			return
-		}
+		// TODO: Implement actual rate limiting logic here
+		// For now, just pass through to next handler
+		// The actual rate limiting implementation would check:
+		// - Client IP address
+		// - Request count per time window
+		// - Block if limit exceeded
 
 		next.ServeHTTP(w, r)
 	})

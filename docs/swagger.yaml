@@ -51,7 +51,9 @@ paths:
       tags:
         - Authentication
       summary: Register a new user
-      description: Create a new user account (admin access required in production)
+      description: Create a new user account (authentication required)
+      security:
+        - SessionAuth: []
       requestBody:
         required: true
         content:
@@ -67,6 +69,8 @@ paths:
                 $ref: '#/components/schemas/SuccessResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'
 

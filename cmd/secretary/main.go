@@ -75,6 +75,8 @@ func runServer() {
 	credentialRepo := repository.NewCredentialRepository(db)
 	permissionRepo := repository.NewPermissionRepository(db)
 	accessRequestRepo := repository.NewAccessRequestRepository(db)
+	sessionRepo := repository.NewSessionRepository(db)
+	ephemeralCredentialRepo := repository.NewEphemeralCredentialRepository(db)
 
 	// Initialize services
 	userService := service.NewUserService(userRepo)
@@ -82,6 +84,8 @@ func runServer() {
 	credentialService := service.NewCredentialService(credentialRepo)
 	permissionService := service.NewPermissionService(permissionRepo)
 	accessRequestService := service.NewAccessRequestService(accessRequestRepo)
+	sessionService := service.NewSessionService(sessionRepo)
+	ephemeralCredentialService := service.NewEphemeralCredentialService(ephemeralCredentialRepo)
 
 	// Create admin user in development mode
 	if *devMode {
@@ -118,6 +122,8 @@ func runServer() {
 	credentialHandler := handlers.NewCredentialHandler(credentialService)
 	permissionHandler := handlers.NewPermissionHandler(permissionService)
 	accessRequestHandler := handlers.NewAccessRequestHandler(accessRequestService)
+	sessionHandler := handlers.NewSessionHandler(sessionService)
+	ephemeralCredentialHandler := handlers.NewEphemeralCredentialHandler(ephemeralCredentialService)
 
 	// Initialize router
 	router := handlers.NewRouter()
@@ -127,6 +133,8 @@ func runServer() {
 		credentialHandler,
 		permissionHandler,
 		accessRequestHandler,
+		sessionHandler,
+		ephemeralCredentialHandler,
 	)
 
 	// Add middleware
