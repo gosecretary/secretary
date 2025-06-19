@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -26,19 +25,18 @@ type proxyService struct {
 }
 
 type ProxyConnection struct {
-	ID            string
-	SessionID     string
-	UserID        string
-	ResourceID    string
-	Protocol      string
-	LocalPort     int
-	RemoteHost    string
-	RemotePort    int
-	Status        string
-	listener      net.Listener
-	connections   []net.Conn
-	recordingFile *os.File
-	cancel        context.CancelFunc
+	ID          string
+	SessionID   string
+	UserID      string
+	ResourceID  string
+	Protocol    string
+	LocalPort   int
+	RemoteHost  string
+	RemotePort  int
+	Status      string
+	listener    net.Listener
+	connections []net.Conn
+	cancel      context.CancelFunc
 }
 
 func NewProxyService(
