@@ -87,6 +87,12 @@ func runServer() {
 	sessionService := service.NewSessionService(sessionRepo)
 	ephemeralCredentialService := service.NewEphemeralCredentialService(ephemeralCredentialRepo)
 
+	// Initialize session monitoring services
+	sessionCommandService := service.NewSessionCommandService()
+	sessionRecordingService := service.NewSessionRecordingService()
+	securityAlertService := service.NewSecurityAlertService()
+	proxyService := service.NewProxyService(sessionCommandService, sessionRecordingService, securityAlertService)
+
 	// Create admin user in development mode
 	if *devMode {
 		// Generate random password
@@ -124,6 +130,7 @@ func runServer() {
 	accessRequestHandler := handlers.NewAccessRequestHandler(accessRequestService)
 	sessionHandler := handlers.NewSessionHandler(sessionService)
 	ephemeralCredentialHandler := handlers.NewEphemeralCredentialHandler(ephemeralCredentialService)
+	sessionMonitorHandler := handlers.NewSessionMonitorHandler(sessionCommandService, sessionRecordingService, proxyService, securityAlertService)
 
 	// Initialize router
 	router := handlers.NewRouter()
@@ -135,6 +142,7 @@ func runServer() {
 		accessRequestHandler,
 		sessionHandler,
 		ephemeralCredentialHandler,
+		sessionMonitorHandler,
 	)
 
 	// Add middleware

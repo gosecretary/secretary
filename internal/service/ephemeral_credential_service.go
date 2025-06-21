@@ -17,9 +17,10 @@ import (
 const (
 	defaultCredentialLifetime = 8 * time.Hour
 	usernamePrefix            = "sec"
-	tokenLength               = 32
+	tokenLength               = 48
 	passwordLength            = 24
 	passwordCharset           = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+,.?;:[]{}|"
+	maxTokenRetries           = 10
 )
 
 type ephemeralCredentialService struct {
@@ -119,6 +120,28 @@ func (s *ephemeralCredentialService) Create(ctx context.Context, credential *dom
 	}
 	if credential.ExpiresAt.IsZero() {
 		credential.ExpiresAt = time.Now().Add(defaultCredentialLifetime)
+	}
+
+	// Generate unique token with retry mechanism
+	var token string
+	var err error
+	for i := 0; i < maxTokenRetries; i++ {
+		token, err = s.generateToken(tokenLength)
+		if err != nil {
+			continue
+		}
+
+		// Check if token already exists
+		existingCred, err := s.repo.FindByToken(token)
+		if err != nil && existingCred == nil {
+			// Token doesn't exist, we can use it
+			credential.Token = token
+			break
+		}
+	}
+
+	if credential.Token == "" {
+		return nil, fmt.Errorf("failed to generate unique token after %d attempts", maxTokenRetries)
 	}
 
 	if err := s.repo.Create(credential); err != nil {

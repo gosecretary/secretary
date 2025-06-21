@@ -14,9 +14,9 @@ const (
 	MaxUsernameLength = 32
 	MinPasswordLength = 8
 	MaxPasswordLength = 128
-	MaxReasonLength   = 1000
-	MaxResourceName   = 64
-	MaxHostLength     = 253
+	MaxReasonLength   = 120
+	MaxResourceName   = 50
+	MaxHostLength     = 60
 	MinPortNumber     = 1
 	MaxPortNumber     = 65535
 )
@@ -35,7 +35,7 @@ type ValidationError struct {
 }
 
 func (e ValidationError) Error() string {
-	return fmt.Sprintf("validation error for field '%s': %s", e.Field, e.Message)
+	return fmt.Sprintf("%s: %s", e.Field, e.Message)
 }
 
 // ValidateUsername validates a username
@@ -65,6 +65,20 @@ func ValidateUsername(username string) error {
 		return ValidationError{
 			Field:   "username",
 			Message: "can only contain letters, numbers, dots, hyphens, and underscores",
+		}
+	}
+
+	// Check for reserved usernames
+	reservedNames := []string{
+		"admin", "root", "system", "user", "guest", "test", "temp", "tmp",
+		"backup", "www", "mail", "ftp", "localhost", "127.0.0.1", "::1",
+	}
+	for _, reserved := range reservedNames {
+		if strings.ToLower(username) == reserved {
+			return ValidationError{
+				Field:   "username",
+				Message: fmt.Sprintf("'%s' is a reserved username", username),
+			}
 		}
 	}
 
@@ -108,24 +122,31 @@ func ValidatePassword(password string) error {
 	hasDigit := regexp.MustCompile(`[0-9]`).MatchString(password)
 	hasSpecial := regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?~` + "`" + `]`).MatchString(password)
 
-	strengthCount := 0
-	if hasUpper {
-		strengthCount++
-	}
-	if hasLower {
-		strengthCount++
-	}
-	if hasDigit {
-		strengthCount++
-	}
-	if hasSpecial {
-		strengthCount++
-	}
-
-	if strengthCount < 3 {
+	if !hasUpper {
 		return ValidationError{
 			Field:   "password",
-			Message: "must contain at least 3 of: uppercase letter, lowercase letter, digit, special character",
+			Message: "must contain at least one uppercase letter",
+		}
+	}
+
+	if !hasLower {
+		return ValidationError{
+			Field:   "password",
+			Message: "must contain at least one lowercase letter",
+		}
+	}
+
+	if !hasDigit {
+		return ValidationError{
+			Field:   "password",
+			Message: "must contain at least one digit",
+		}
+	}
+
+	if !hasSpecial {
+		return ValidationError{
+			Field:   "password",
+			Message: "must contain at least one special character",
 		}
 	}
 
@@ -141,6 +162,13 @@ func ValidateResourceName(name string) error {
 		}
 	}
 
+	if len(name) < 2 {
+		return ValidationError{
+			Field:   "resource_name",
+			Message: "must be at least 2 characters long",
+		}
+	}
+
 	if len(name) > MaxResourceName {
 		return ValidationError{
 			Field:   "resource_name",
@@ -152,6 +180,14 @@ func ValidateResourceName(name string) error {
 		return ValidationError{
 			Field:   "resource_name",
 			Message: "must be valid UTF-8",
+		}
+	}
+
+	// Check if starts with invalid character
+	if len(name) > 0 && (name[0] >= '0' && name[0] <= '9' || name[0] == '_' || name[0] == '-') {
+		return ValidationError{
+			Field:   "resource_name",
+			Message: "cannot start with a number, underscore, or hyphen",
 		}
 	}
 
@@ -197,7 +233,23 @@ func ValidateHost(host string) error {
 
 	// Try to parse as IP address first
 	if ip := net.ParseIP(host); ip != nil {
+		// Additional validation for IP addresses
+		if ip.IsLoopback() && host != "localhost" && host != "::1" {
+			return ValidationError{
+				Field:   "host",
+				Message: "loopback IP addresses are not allowed",
+			}
+		}
 		return nil // Valid IP address
+	}
+
+	// If it looks like an IP (all numeric parts separated by dots or colons) but failed to parse, it's invalid
+	ipLike := regexp.MustCompile(`^([0-9]+\.){3}[0-9]+$|^([0-9a-fA-F:]+)$`)
+	if ipLike.MatchString(host) {
+		return ValidationError{
+			Field:   "host",
+			Message: "invalid IP address",
+		}
 	}
 
 	// Validate as hostname
@@ -267,13 +319,18 @@ func ValidateReason(reason string) error {
 func containsSQLInjectionPatterns(input string) bool {
 	input = strings.ToLower(input)
 
+	// More specific patterns that are likely to be SQL injection
 	patterns := []string{
-		"'", "\"", ";", "--", "/*", "*/", "@@", "@",
-		"union", "select", "insert", "update", "delete", "drop", "create", "alter",
-		"exec", "execute", "sp_", "xp_", "sp_executesql",
-		"char(", "ascii(", "substring(", "length(", "version(",
-		"database(", "user(", "system_user", "session_user",
+		"';", "\";", "--", "/*", "*/", "@@", "#",
+		"union select", "union all select", "union distinct select",
+		"drop table", "drop database", "drop index", "drop view",
+		"create table", "create database", "create index", "create view",
+		"alter table", "alter database", "alter index", "alter view",
+		"exec(", "execute(", "sp_executesql", "xp_", "sp_",
+		"char(0x", "ascii(0x", "substring(0x", "length(0x", "version(0x",
+		"database(0x", "user(0x", "system_user(0x", "session_user(0x",
 		"0x", "0b", "\\x", "\\u",
+		"or '1'='1", "or 1=1", "and 1=1", "or '1'='1'",
 	}
 
 	for _, pattern := range patterns {
@@ -292,6 +349,8 @@ func containsXSSPatterns(input string) bool {
 	patterns := []string{
 		"<script", "</script>", "javascript:", "vbscript:", "onload=", "onerror=",
 		"onclick=", "onmouseover=", "onfocus=", "onblur=", "onchange=", "onsubmit=",
+		"onreset=", "onselect=", "onunload=", "onresize=", "onscroll=", "onkeydown=",
+		"onkeyup=", "onkeypress=",
 		"<iframe", "<object", "<embed", "<link", "<meta", "<style",
 		"data:text/html", "data:text/javascript",
 	}
@@ -309,6 +368,14 @@ func containsXSSPatterns(input string) bool {
 func SanitizeInput(input string) string {
 	// Remove null bytes
 	input = strings.ReplaceAll(input, "\x00", "")
+
+	// Remove script content first (including content between script tags)
+	scriptRegex := regexp.MustCompile(`<script[^>]*>.*?</script>`)
+	input = scriptRegex.ReplaceAllString(input, "")
+
+	// Remove HTML tags using regex
+	htmlTagRegex := regexp.MustCompile(`<[^>]*>`)
+	input = htmlTagRegex.ReplaceAllString(input, "")
 
 	// Trim whitespace
 	input = strings.TrimSpace(input)

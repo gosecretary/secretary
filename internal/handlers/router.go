@@ -26,6 +26,7 @@ func (r *Router) RegisterHandlers(
 	accessRequestHandler *AccessRequestHandler,
 	sessionHandler *SessionHandler,
 	ephemeralCredentialHandler *EphemeralCredentialHandler,
+	sessionMonitorHandler *SessionMonitorHandler,
 ) {
 	// PUBLIC ROUTES - No authentication required (ONLY health and login)
 	// Health check
@@ -105,6 +106,9 @@ func (r *Router) RegisterHandlers(
 	api.HandleFunc("/ephemeral-credentials/{id}", ephemeralCredentialHandler.Delete).Methods("DELETE")
 	api.HandleFunc("/ephemeral-credentials/{id}/use", ephemeralCredentialHandler.MarkAsUsed).Methods("POST")
 	api.HandleFunc("/ephemeral-credentials/token/{token}", ephemeralCredentialHandler.GetByToken).Methods("GET")
+
+	// Session monitoring routes
+	sessionMonitorHandler.RegisterRoutes(api)
 
 	// Add documentation handler - protected for security
 	docsHandler := NewDocsHandler()

@@ -139,7 +139,7 @@ func (r *permissionRepository) Update(permission *domain.Permission) error {
 		SET user_id = ?, resource_id = ?, role = ?, action = ?, updated_at = ?
 		WHERE id = ?
 	`
-	_, err := r.db.Exec(query,
+	result, err := r.db.Exec(query,
 		permission.UserID,
 		permission.ResourceID,
 		permission.Role,
@@ -147,13 +147,33 @@ func (r *permissionRepository) Update(permission *domain.Permission) error {
 		permission.UpdatedAt,
 		permission.ID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("permission not found")
+	}
+	return nil
 }
 
 func (r *permissionRepository) Delete(id string) error {
 	query := `DELETE FROM permissions WHERE id = ?`
-	_, err := r.db.Exec(query, id)
-	return err
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("permission not found")
+	}
+	return nil
 }
 
 func (r *permissionRepository) DeleteByUserID(userID string) error {

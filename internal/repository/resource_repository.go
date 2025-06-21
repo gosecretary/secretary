@@ -19,27 +19,20 @@ func NewResourceRepository(db *sql.DB) domain.ResourceRepository {
 }
 
 func (r *resourceRepository) Create(resource *domain.Resource) error {
-	// Generate UUID if not provided
 	if resource.ID == "" {
 		resource.ID = uuid.New().String()
 	}
-
-	// Set timestamps
-	resource.CreatedAt = time.Now()
-	resource.UpdatedAt = time.Now()
-
+	if resource.CreatedAt.IsZero() {
+		resource.CreatedAt = time.Now()
+	}
+	if resource.UpdatedAt.IsZero() {
+		resource.UpdatedAt = time.Now()
+	}
 	query := `
 		INSERT INTO resources (id, name, description, type, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?)
 	`
-	_, err := r.db.Exec(query,
-		resource.ID,
-		resource.Name,
-		resource.Description,
-		resource.Type,
-		resource.CreatedAt,
-		resource.UpdatedAt,
-	)
+	_, err := r.db.Exec(query, resource.ID, resource.Name, resource.Description, resource.Type, resource.CreatedAt, resource.UpdatedAt)
 	return err
 }
 
@@ -102,18 +95,38 @@ func (r *resourceRepository) Update(resource *domain.Resource) error {
 		SET name = ?, description = ?, type = ?, updated_at = ?
 		WHERE id = ?
 	`
-	_, err := r.db.Exec(query,
+	result, err := r.db.Exec(query,
 		resource.Name,
 		resource.Description,
 		resource.Type,
 		resource.UpdatedAt,
 		resource.ID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("resource not found")
+	}
+	return nil
 }
 
 func (r *resourceRepository) Delete(id string) error {
 	query := `DELETE FROM resources WHERE id = ?`
-	_, err := r.db.Exec(query, id)
-	return err
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("resource not found")
+	}
+	return nil
 }

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
+
 	"secretary/alpha/internal/domain"
 )
 
@@ -17,6 +19,17 @@ func NewSessionRepository(db *sql.DB) domain.SessionRepository {
 }
 
 func (r *sessionRepository) Create(session *domain.Session) error {
+	// Set default values if not provided
+	if session.ID == "" {
+		session.ID = uuid.New().String()
+	}
+	if session.CreatedAt.IsZero() {
+		session.CreatedAt = time.Now()
+	}
+	if session.UpdatedAt.IsZero() {
+		session.UpdatedAt = time.Now()
+	}
+
 	query := `
 		INSERT INTO sessions (
 			id, user_id, resource_id, start_time, end_time, status, 
@@ -108,25 +121,46 @@ func (r *sessionRepository) FindActive() ([]*domain.Session, error) {
 }
 
 func (r *sessionRepository) Update(session *domain.Session) error {
+	session.UpdatedAt = time.Now()
 	query := `
 		UPDATE sessions
 		SET end_time = ?, status = ?, audit_path = ?, updated_at = ?
 		WHERE id = ?
 	`
-	_, err := r.db.Exec(query,
+	result, err := r.db.Exec(query,
 		session.EndTime,
 		session.Status,
 		session.AuditPath,
-		time.Now(),
+		session.UpdatedAt,
 		session.ID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("session not found")
+	}
+	return nil
 }
 
 func (r *sessionRepository) Delete(id string) error {
 	query := `DELETE FROM sessions WHERE id = ?`
-	_, err := r.db.Exec(query, id)
-	return err
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("session not found")
+	}
+	return nil
 }
 
 func (r *sessionRepository) querySessions(query string, args ...interface{}) ([]*domain.Session, error) {

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
+
 	"secretary/alpha/internal/domain"
 )
 
@@ -17,10 +19,18 @@ func NewEphemeralCredentialRepository(db *sql.DB) domain.EphemeralCredentialRepo
 }
 
 func (r *ephemeralCredentialRepository) Create(credential *domain.EphemeralCredential) error {
+	// Set default values if not provided
+	if credential.ID == "" {
+		credential.ID = uuid.New().String()
+	}
+	if credential.CreatedAt.IsZero() {
+		credential.CreatedAt = time.Now()
+	}
+
 	query := `
 		INSERT INTO ephemeral_credentials (
-			id, user_id, resource_id, username, password, token, expires_at, created_at, used_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			id, user_id, resource_id, username, password, token, expires_at, created_at, used_at, duration, used
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := r.db.Exec(query,
 		credential.ID,
@@ -32,18 +42,21 @@ func (r *ephemeralCredentialRepository) Create(credential *domain.EphemeralCrede
 		credential.ExpiresAt,
 		credential.CreatedAt,
 		credential.UsedAt,
+		credential.Duration,
+		credential.Used,
 	)
 	return err
 }
 
 func (r *ephemeralCredentialRepository) FindByID(id string) (*domain.EphemeralCredential, error) {
 	query := `
-		SELECT id, user_id, resource_id, username, password, token, expires_at, created_at, used_at
+		SELECT id, user_id, resource_id, username, password, token, expires_at, created_at, used_at, duration, used
 		FROM ephemeral_credentials
 		WHERE id = ?
 	`
 	credential := &domain.EphemeralCredential{}
 	var usedAt sql.NullTime
+	var used bool
 
 	err := r.db.QueryRow(query, id).Scan(
 		&credential.ID,
@@ -55,6 +68,8 @@ func (r *ephemeralCredentialRepository) FindByID(id string) (*domain.EphemeralCr
 		&credential.ExpiresAt,
 		&credential.CreatedAt,
 		&usedAt,
+		&credential.Duration,
+		&used,
 	)
 
 	if err == sql.ErrNoRows {
@@ -64,18 +79,20 @@ func (r *ephemeralCredentialRepository) FindByID(id string) (*domain.EphemeralCr
 	if usedAt.Valid {
 		credential.UsedAt = usedAt.Time
 	}
+	credential.Used = used
 
 	return credential, err
 }
 
 func (r *ephemeralCredentialRepository) FindByToken(token string) (*domain.EphemeralCredential, error) {
 	query := `
-		SELECT id, user_id, resource_id, username, password, token, expires_at, created_at, used_at
+		SELECT id, user_id, resource_id, username, password, token, expires_at, created_at, used_at, duration, used
 		FROM ephemeral_credentials
 		WHERE token = ?
 	`
 	credential := &domain.EphemeralCredential{}
 	var usedAt sql.NullTime
+	var used bool
 
 	err := r.db.QueryRow(query, token).Scan(
 		&credential.ID,
@@ -87,6 +104,8 @@ func (r *ephemeralCredentialRepository) FindByToken(token string) (*domain.Ephem
 		&credential.ExpiresAt,
 		&credential.CreatedAt,
 		&usedAt,
+		&credential.Duration,
+		&used,
 	)
 
 	if err == sql.ErrNoRows {
@@ -96,6 +115,7 @@ func (r *ephemeralCredentialRepository) FindByToken(token string) (*domain.Ephem
 	if usedAt.Valid {
 		credential.UsedAt = usedAt.Time
 	}
+	credential.Used = used
 
 	return credential, err
 }
@@ -113,11 +133,26 @@ func (r *ephemeralCredentialRepository) FindByUserID(userID string) ([]*domain.E
 func (r *ephemeralCredentialRepository) Update(credential *domain.EphemeralCredential) error {
 	query := `
 		UPDATE ephemeral_credentials
-		SET used_at = ?
+		SET used = ?, used_at = ?
 		WHERE id = ?
 	`
-	_, err := r.db.Exec(query, credential.UsedAt, credential.ID)
-	return err
+	result, err := r.db.Exec(query, credential.Used, credential.UsedAt, credential.ID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("ephemeral credential not found")
+	}
+	// Update in-memory struct
+	credential.Used = true
+	if credential.UsedAt.IsZero() {
+		credential.UsedAt = time.Now()
+	}
+	return nil
 }
 
 func (r *ephemeralCredentialRepository) DeleteExpired() error {
@@ -134,8 +169,18 @@ func (r *ephemeralCredentialRepository) DeleteByUserID(userID string) error {
 		DELETE FROM ephemeral_credentials
 		WHERE user_id = ?
 	`
-	_, err := r.db.Exec(query, userID)
-	return err
+	result, err := r.db.Exec(query, userID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("ephemeral credential not found for user")
+	}
+	return nil
 }
 
 func (r *ephemeralCredentialRepository) DeleteByResourceID(resourceID string) error {
@@ -143,8 +188,18 @@ func (r *ephemeralCredentialRepository) DeleteByResourceID(resourceID string) er
 		DELETE FROM ephemeral_credentials
 		WHERE resource_id = ?
 	`
-	_, err := r.db.Exec(query, resourceID)
-	return err
+	result, err := r.db.Exec(query, resourceID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("ephemeral credential not found for resource")
+	}
+	return nil
 }
 
 func (r *ephemeralCredentialRepository) queryEphemeralCredentials(query string, args ...interface{}) ([]*domain.EphemeralCredential, error) {

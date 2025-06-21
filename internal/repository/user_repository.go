@@ -3,6 +3,9 @@ package repository
 import (
 	"database/sql"
 	"errors"
+	"time"
+
+	"github.com/google/uuid"
 
 	"secretary/alpha/internal/domain"
 )
@@ -16,15 +19,27 @@ func NewUserRepository(db *sql.DB) domain.UserRepository {
 }
 
 func (r *userRepository) Create(user *domain.User) error {
+	// Set default values if not provided
+	if user.ID == "" {
+		user.ID = uuid.New().String()
+	}
+	if user.CreatedAt.IsZero() {
+		user.CreatedAt = time.Now()
+	}
+	if user.UpdatedAt.IsZero() {
+		user.UpdatedAt = time.Now()
+	}
+
 	query := `
-		INSERT INTO users (id, username, email, password, role, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO users (id, username, email, password, name, role, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := r.db.Exec(query,
 		user.ID,
 		user.Username,
 		user.Email,
 		user.Password,
+		user.Name,
 		user.Role,
 		user.CreatedAt,
 		user.UpdatedAt,
@@ -34,16 +49,18 @@ func (r *userRepository) Create(user *domain.User) error {
 
 func (r *userRepository) FindByID(id string) (*domain.User, error) {
 	query := `
-		SELECT id, email, password, name, created_at, updated_at
+		SELECT id, username, email, password, name, role, created_at, updated_at
 		FROM users
 		WHERE id = ?
 	`
 	user := &domain.User{}
 	err := r.db.QueryRow(query, id).Scan(
 		&user.ID,
+		&user.Username,
 		&user.Email,
 		&user.Password,
 		&user.Name,
+		&user.Role,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -55,7 +72,7 @@ func (r *userRepository) FindByID(id string) (*domain.User, error) {
 
 func (r *userRepository) FindByUsername(username string) (*domain.User, error) {
 	query := `
-		SELECT id, username, email, password, role, created_at, updated_at
+		SELECT id, username, email, password, name, role, created_at, updated_at
 		FROM users
 		WHERE username = ?
 	`
@@ -65,6 +82,7 @@ func (r *userRepository) FindByUsername(username string) (*domain.User, error) {
 		&user.Username,
 		&user.Email,
 		&user.Password,
+		&user.Name,
 		&user.Role,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -77,7 +95,7 @@ func (r *userRepository) FindByUsername(username string) (*domain.User, error) {
 
 func (r *userRepository) FindByEmail(email string) (*domain.User, error) {
 	query := `
-		SELECT id, username, email, password, role, created_at, updated_at
+		SELECT id, username, email, password, name, role, created_at, updated_at
 		FROM users
 		WHERE email = ?
 	`
@@ -87,6 +105,7 @@ func (r *userRepository) FindByEmail(email string) (*domain.User, error) {
 		&user.Username,
 		&user.Email,
 		&user.Password,
+		&user.Name,
 		&user.Role,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -98,24 +117,66 @@ func (r *userRepository) FindByEmail(email string) (*domain.User, error) {
 }
 
 func (r *userRepository) Update(user *domain.User) error {
+	// Check if user exists
+	_, err := r.FindByID(user.ID)
+	if err != nil {
+		return err
+	}
+
+	// Update timestamp
+	user.UpdatedAt = time.Now()
+
 	query := `
 		UPDATE users
-		SET username = ?, email = ?, password = ?, role = ?, updated_at = ?
+		SET username = ?, email = ?, password = ?, name = ?, role = ?, updated_at = ?
 		WHERE id = ?
 	`
-	_, err := r.db.Exec(query,
+	result, err := r.db.Exec(query,
 		user.Username,
 		user.Email,
 		user.Password,
+		user.Name,
 		user.Role,
 		user.UpdatedAt,
 		user.ID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("user not found")
+	}
+
+	return nil
 }
 
 func (r *userRepository) Delete(id string) error {
+	// Check if user exists
+	_, err := r.FindByID(id)
+	if err != nil {
+		return err
+	}
+
 	query := `DELETE FROM users WHERE id = ?`
-	_, err := r.db.Exec(query, id)
-	return err
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("user not found")
+	}
+
+	return nil
 }

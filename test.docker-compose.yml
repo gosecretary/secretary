@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  test-ssh-server:
+    image: linuxserver/openssh-server:latest
+    container_name: secretary-test-ssh
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+      - USER_NAME=testuser
+      - USER_PASSWORD=testpass123
+      - USER_UID=1000
+      - USER_GID=1000
+      - PASSWORD_ACCESS=true
+      - PUBLIC_KEY_DNS=github.com
+      - PUBLIC_KEY_URL=https://github.com/username.keys
+      - PUBLIC_KEY_USER=github
+      - PUBLIC_KEY_ENABLE=false
+      - SUDO_ACCESS=true
+      - TCP_PORTRANGE=22200
+    ports:
+      - "2222:2222"
+    volumes:
+      - ./test-ssh-keys:/ssh-keys:ro
+      - ./test-ssh-server-data:/config
+    restart: unless-stopped
+    networks:
+      - secretary-network
+
+networks:
+  secretary-network:
+    driver: bridge 

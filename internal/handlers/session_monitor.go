@@ -33,30 +33,30 @@ func NewSessionMonitorHandler(
 
 func (h *SessionMonitorHandler) RegisterRoutes(r *mux.Router) {
 	// Session Command routes
-	r.HandleFunc("/api/sessions/{session_id}/commands", h.GetSessionCommands).Methods("GET")
-	r.HandleFunc("/api/users/{user_id}/commands", h.GetUserCommands).Methods("GET")
-	r.HandleFunc("/api/resources/{resource_id}/commands", h.GetResourceCommands).Methods("GET")
-	r.HandleFunc("/api/commands/high-risk", h.GetHighRiskCommands).Methods("GET")
+	r.HandleFunc("/sessions/{session_id}/commands", h.GetSessionCommands).Methods("GET")
+	r.HandleFunc("/users/{user_id}/commands", h.GetUserCommands).Methods("GET")
+	r.HandleFunc("/resources/{resource_id}/commands", h.GetResourceCommands).Methods("GET")
+	r.HandleFunc("/commands/high-risk", h.GetHighRiskCommands).Methods("GET")
 
 	// Session Recording routes
-	r.HandleFunc("/api/sessions/{session_id}/recording/start", h.StartRecording).Methods("POST")
-	r.HandleFunc("/api/sessions/{session_id}/recording/stop", h.StopRecording).Methods("POST")
-	r.HandleFunc("/api/sessions/{session_id}/recording", h.GetRecording).Methods("GET")
-	r.HandleFunc("/api/recordings/{recording_id}/download", h.DownloadRecording).Methods("GET")
-	r.HandleFunc("/api/users/{user_id}/recordings", h.GetUserRecordings).Methods("GET")
+	r.HandleFunc("/sessions/{session_id}/recording/start", h.StartRecording).Methods("POST")
+	r.HandleFunc("/sessions/{session_id}/recording/stop", h.StopRecording).Methods("POST")
+	r.HandleFunc("/sessions/{session_id}/recording", h.GetRecording).Methods("GET")
+	r.HandleFunc("/recordings/{recording_id}/download", h.DownloadRecording).Methods("GET")
+	r.HandleFunc("/users/{user_id}/recordings", h.GetUserRecordings).Methods("GET")
 
 	// Proxy routes
-	r.HandleFunc("/api/sessions/{session_id}/proxy", h.CreateProxy).Methods("POST")
-	r.HandleFunc("/api/proxies/{proxy_id}/start", h.StartProxy).Methods("POST")
-	r.HandleFunc("/api/proxies/{proxy_id}/stop", h.StopProxy).Methods("POST")
-	r.HandleFunc("/api/proxies/active", h.GetActiveProxies).Methods("GET")
-	r.HandleFunc("/api/sessions/{session_id}/proxy", h.GetSessionProxy).Methods("GET")
+	r.HandleFunc("/sessions/{session_id}/proxy", h.CreateProxy).Methods("POST")
+	r.HandleFunc("/proxies/{proxy_id}/start", h.StartProxy).Methods("POST")
+	r.HandleFunc("/proxies/{proxy_id}/stop", h.StopProxy).Methods("POST")
+	r.HandleFunc("/proxies/active", h.GetActiveProxies).Methods("GET")
+	r.HandleFunc("/sessions/{session_id}/proxy", h.GetSessionProxy).Methods("GET")
 
 	// Security Alert routes
-	r.HandleFunc("/api/sessions/{session_id}/alerts", h.GetSessionAlerts).Methods("GET")
-	r.HandleFunc("/api/users/{user_id}/alerts", h.GetUserAlerts).Methods("GET")
-	r.HandleFunc("/api/alerts/severity/{severity}", h.GetAlertsBySeverity).Methods("GET")
-	r.HandleFunc("/api/alerts/{alert_id}/review", h.MarkAlertAsReviewed).Methods("POST")
+	r.HandleFunc("/sessions/{session_id}/alerts", h.GetSessionAlerts).Methods("GET")
+	r.HandleFunc("/users/{user_id}/alerts", h.GetUserAlerts).Methods("GET")
+	r.HandleFunc("/alerts/severity/{severity}", h.GetAlertsBySeverity).Methods("GET")
+	r.HandleFunc("/alerts/{alert_id}/review", h.MarkAlertAsReviewed).Methods("POST")
 }
 
 // Session Command Handlers

@@ -103,18 +103,38 @@ func (r *credentialRepository) Update(credential *domain.Credential) error {
 		SET resource_id = ?, type = ?, secret = ?, updated_at = ?
 		WHERE id = ?
 	`
-	_, err := r.db.Exec(query,
+	result, err := r.db.Exec(query,
 		credential.ResourceID,
 		credential.Type,
 		credential.Secret,
 		credential.UpdatedAt,
 		credential.ID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("credential not found")
+	}
+	return nil
 }
 
 func (r *credentialRepository) Delete(id string) error {
 	query := `DELETE FROM credentials WHERE id = ?`
-	_, err := r.db.Exec(query, id)
-	return err
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("credential not found")
+	}
+	return nil
 }

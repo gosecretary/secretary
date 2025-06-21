@@ -42,7 +42,7 @@ func runMigrations(db *sql.DB) error {
 
 	CREATE TABLE IF NOT EXISTS resources (
 		id TEXT PRIMARY KEY,
-		name TEXT NOT NULL,
+		name TEXT NOT NULL UNIQUE,
 		description TEXT,
 		type TEXT,
 		created_at DATETIME NOT NULL,
@@ -109,7 +109,9 @@ func runMigrations(db *sql.DB) error {
 		token TEXT UNIQUE,
 		expires_at DATETIME NOT NULL,
 		created_at DATETIME NOT NULL,
-		used_at DATETIME
+		used_at DATETIME,
+		duration TEXT NOT NULL,
+		used BOOLEAN NOT NULL DEFAULT FALSE
 	);
 	`
 
