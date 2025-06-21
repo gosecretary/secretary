@@ -95,7 +95,7 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		UserID:    user.ID,
 		Username:  user.Username,
 		Status:    "active",
-		ExpiresAt: time.Now().Add(24 * time.Hour),
+		ExpiresAt: time.Now().Add(1 * time.Hour),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
