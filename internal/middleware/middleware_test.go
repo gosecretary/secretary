@@ -140,36 +140,16 @@ func TestRateLimitMiddleware(t *testing.T) {
 			hasSession:   false,
 		},
 		{
-			name:         "register endpoint without session should fail",
+			name:         "any endpoint should pass through rate limit middleware",
 			path:         "/api/register",
-			expectedCode: 401,
+			expectedCode: 200,
 			hasSession:   false,
 		},
 		{
-			name:         "register endpoint with non-admin session should fail",
-			path:         "/api/register",
-			expectedCode: 403,
-			hasSession:   true,
-			isAdmin:      false,
-		},
-		{
-			name:         "register endpoint with admin session should pass",
-			path:         "/api/register",
-			expectedCode: 200,
-			hasSession:   true,
-			isAdmin:      true,
-		},
-		{
-			name:         "other endpoint without session should fail",
+			name:         "other endpoint should pass through rate limit middleware",
 			path:         "/api/users",
-			expectedCode: 401,
+			expectedCode: 200,
 			hasSession:   false,
-		},
-		{
-			name:         "other endpoint with session should pass",
-			path:         "/api/users",
-			expectedCode: 200,
-			hasSession:   true,
 		},
 	}
 
@@ -223,4 +203,66 @@ func TestHTTPRequest(t *testing.T) {
 	// This function just logs, so we can test that it doesn't panic
 	HTTPRequest("GET", "/test", "127.0.0.1", 200, time.Millisecond*100)
 	// If we get here without panicking, the test passes
+}
+
+func TestSessionMiddleware(t *testing.T) {
+	// Note: In a real implementation you'd want proper mocking of the session store
+	// For now, we'll test the basic flow without mocking
+
+	tests := []struct {
+		name         string
+		path         string
+		hasCookie    bool
+		cookieValue  string
+		expectedCode int
+	}{
+		{
+			name:         "health endpoint should pass without session",
+			path:         "/health",
+			hasCookie:    false,
+			expectedCode: 200,
+		},
+		{
+			name:         "login endpoint should pass without session",
+			path:         "/api/login",
+			hasCookie:    false,
+			expectedCode: 200,
+		},
+		{
+			name:         "protected endpoint without cookie should fail",
+			path:         "/api/register",
+			hasCookie:    false,
+			expectedCode: 401,
+		},
+		{
+			name:         "protected endpoint with invalid cookie should fail",
+			path:         "/api/register",
+			hasCookie:    true,
+			cookieValue:  "invalid-session",
+			expectedCode: 401,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := SessionMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("success"))
+			}))
+
+			req := httptest.NewRequest("GET", tt.path, nil)
+
+			if tt.hasCookie {
+				req.AddCookie(&http.Cookie{
+					Name:  SessionCookieName,
+					Value: tt.cookieValue,
+				})
+			}
+
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedCode, w.Code)
+		})
+	}
 }

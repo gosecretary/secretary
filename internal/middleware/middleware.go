@@ -53,6 +53,12 @@ func SessionMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// Check if session was found
+		if session == nil {
+			utils.Unauthorized(w, "Session not found")
+			return
+		}
+
 		// Check if session is expired
 		if session.ExpiresAt.Before(time.Now()) {
 			utils.Unauthorized(w, "Session expired")
