@@ -1,4 +1,4 @@
-# Secretary Project: Open Infrastructure Access Management [![CodeQL](https://github.com/gosecretary/secretary/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/gosecretary/secretary/actions/workflows/github-code-scanning/codeql) [![Secretary Test](https://github.com/gosecretary/secretary/actions/workflows/test-pipeline.yml/badge.svg)](https://github.com/gosecretary/secretary/actions/workflows/test-pipeline.yml)
+# Secretary Project: Open Infrastructure Access Management [![CodeQL](https://github.com/gosecretary/secretary/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/gosecretary/secretary/actions/workflows/github-code-scanning/codeql) [![Secretary Tests](https://github.com/gosecretary/secretary/actions/workflows/test-pipeline.yml/badge.svg)](https://github.com/gosecretary/secretary/actions/workflows/test-pipeline.yml)
 
 Secretary is an open-source solution for infrastructure access management, combining core ideas from tools like HashiCorp Boundary and Teleport—but with all features available for free and fully open.
 
