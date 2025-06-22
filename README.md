@@ -317,12 +317,13 @@ The security pipeline runs automatically on:
 
 ### Security Tools Integration
 
+Our local security script (`scripts/security-scan.sh`) integrates multiple security tools:
 - **GoSec**: Static analysis for security vulnerabilities
 - **govulncheck**: Known vulnerability scanning
 - **Trivy**: Dependency and container vulnerability scanning
-- **Snyk**: Multi-layered security analysis (SAST, SCA, Container, IaC)
-- **CodeQL**: Advanced static analysis
-- **golangci-lint**: Security-focused linting
+- **golangci-lint**: Security-focused linting with gosec rules
+- **CodeQL**: Advanced static analysis (GitHub's built-in)
+- **Custom checks**: Hardcoded secrets, policy compliance, license validation
 
 ### Security Standards
 
@@ -348,11 +349,17 @@ Developers can run security scans locally:
 # Run comprehensive security scan
 ./scripts/security-scan.sh
 
+# Run in non-interactive mode (for CI/CD)
+./scripts/security-scan.sh --non-interactive
+
+# Install missing tools automatically
+./scripts/security-scan.sh --install-tools
+
 # Run specific security tools
 gosec ./...
 govulncheck ./...
 trivy fs .
-snyk test
+golangci-lint run
 ```
 
 For detailed security documentation, see [docs/SECURITY_PIPELINE.md](docs/SECURITY_PIPELINE.md).

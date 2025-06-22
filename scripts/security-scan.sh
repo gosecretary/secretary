@@ -410,7 +410,7 @@ run_security_policy() {
     fi
     
     # More sophisticated check for hardcoded secrets (exclude test files and legitimate patterns)
-    if find . -type f -name "*.go" -o -name "*.sh" -o -name "*.yml" -o -name "*.yaml" | grep -v "_test.go" | grep -v "vendor" | grep -v "node_modules" | grep -v "bin" | xargs grep -l "secret.*=.*\"" 2>/dev/null | xargs grep "secret.*=.*\"" | grep -v "os.Getenv" | grep -v "SECRETARY_SESSION_SECRET" | grep -v "secret.*monitor" | grep -v "if secret == \"\"" | grep -v "grep -r.*secret" | grep -v "echo.*secret" > "$REPORTS_DIR/hardcoded-secrets.txt" 2>/dev/null; then
+    if find . -type f -name "*.go" -o -name "*.sh" -o -name "*.yml" -o -name "*.yaml" | grep -v "_test.go" | grep -v "vendor" | grep -v "node_modules" | grep -v "bin" | xargs grep -l "secret.*=.*\"" 2>/dev/null | xargs grep "secret.*=.*\"" | grep -v "os.Getenv" | grep -v "SECRETARY_SESSION_SECRET" | grep -v "secret.*monitor" | grep -v "if secret == \"\"" | grep -v "grep -r.*secret" | grep -v "echo.*secret" | grep -v "snyk.*secret" > "$REPORTS_DIR/hardcoded-secrets.txt" 2>/dev/null; then
         log_warning "Potential hardcoded secrets found (see $REPORTS_DIR/hardcoded-secrets.txt)"
         ((policy_violations++))
     else

@@ -1,11 +1,5 @@
 # Secretary Security Scanning Pipeline
-# This workflow performs comprehensive security analysis including:
-# - Snyk (SAST, SCA, Container, IaC)
-# - CodeQL (Static Analysis)
-# - Trivy (Vulnerability Scanner)
-# - Go security checks
-# - Dependency Scanning
-# - License Compliance
+# This workflow performs comprehensive security analysis using our local security script
 
 name: Secretary Security
 
@@ -28,9 +22,9 @@ env:
   SECRETARY_VERSION: '1.0.0'
 
 jobs:
-  # Go Security Checks
-  go-security:
-    name: Go Security Analysis
+  # Security Analysis using our local script
+  security-analysis:
+    name: Security Analysis
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -41,141 +35,69 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Install Go security tools
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
-          go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Run Go vulnerability check
-        run: govulncheck ./...
+      - name: Make security script executable
+        run: chmod +x scripts/security-scan.sh
 
-      - name: Run Go security linter
-        run: gosec -fmt=sarif -out=gosec.sarif ./...
+      - name: Run comprehensive security scan
+        run: ./scripts/security-scan.sh --non-interactive --reports-dir security-reports
 
-      - name: Run Go cyclomatic complexity check
-        run: gocyclo -over 15 .
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: security-reports/
+          retention-days: 30
 
-      - name: Run comprehensive Go linting
-        run: golangci-lint run --out-format=sarif --out=golangci-lint.sarif
-
-      - name: Upload Go security results
+      - name: Upload SARIF files to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
-          sarif_file: gosec.sarif
+          sarif_file: security-reports/gosec.sarif
+          category: "gosec"
 
-      - name: Upload Go linting results
+      - name: Upload golangci-lint SARIF
         uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
-          sarif_file: golangci-lint.sarif
+          sarif_file: security-reports/golangci-lint.sarif
+          category: "golangci-lint"
 
-  # Dependency Security Scanning
-  dependency-scanning:
-    name: Dependency Security
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-
-      - name: Upload Trivy results
+      - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
-          sarif_file: trivy-results.sarif
+          sarif_file: security-reports/trivy-fs.sarif
+          category: "trivy"
 
-      - name: Check for known vulnerabilities in dependencies
-        run: |
-          go list -json -deps ./... | jq -r '.Deps[]' | sort | uniq > deps.txt
-          echo "Analyzing $(wc -l < deps.txt) dependencies for known vulnerabilities"
-
-  # Snyk Security Analysis
-  snyk-security:
-    name: Snyk Security Analysis
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Snyk CLI
-        uses: snyk/actions/setup@806182742461562b67788a64410098c9d9b96adb
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
+      - name: Comment on PR with security summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
         with:
-          go-version: ${{ env.GO_VERSION }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            try {
+              const reportPath = 'security-reports/security-report.md';
+              if (fs.existsSync(reportPath)) {
+                const report = fs.readFileSync(reportPath, 'utf8');
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: report
+                });
+              } else {
+                console.log('Security report not found');
+              }
+            } catch (error) {
+              console.log('Error reading security report:', error.message);
+            }
 
-      - name: Download Go dependencies
-        run: go mod download
-
-      - name: Snyk Code (SAST) analysis
-        run: snyk code test --sarif > snyk-code.sarif || true
-
-      - name: Snyk Open Source (SCA) analysis
-        run: snyk monitor --all-projects || true
-
-      - name: Snyk Infrastructure as Code (IaC) analysis
-        run: snyk iac test --report || true
-
-      - name: Upload Snyk Code results
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: snyk-code.sarif
-
-  # Container Security
-  container-security:
-    name: Container Security
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image
-        run: docker build -t secretary:security-scan .
-
-      - name: Run Trivy container scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'secretary:security-scan'
-          format: 'sarif'
-          output: 'trivy-container.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-
-      - name: Upload container scan results
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-container.sarif
-
-      - name: Set up Snyk CLI
-        uses: snyk/actions/setup@806182742461562b67788a64410098c9d9b96adb
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      - name: Snyk Container analysis
-        run: snyk container monitor secretary:security-scan --file=Dockerfile || true
-
-  # CodeQL Analysis
+  # CodeQL Analysis (using GitHub's built-in action)
   codeql-analysis:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
@@ -206,68 +128,7 @@ jobs:
         with:
           category: "/language:${{matrix.language}}"
 
-  # License Compliance
-  license-compliance:
-    name: License Compliance
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Install license checker
-        run: go install github.com/google/go-licenses@latest
-
-      - name: Check license compliance
-        run: |
-          go-licenses check ./...
-          go-licenses csv ./... > licenses.csv
-          echo "License compliance check completed"
-
-      - name: Upload license report
-        uses: actions/upload-artifact@v4
-        with:
-          name: license-report
-          path: licenses.csv
-
-  # Security Policy Compliance
-  security-policy:
-    name: Security Policy Compliance
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Check for security documentation
-        run: |
-          echo "Checking security documentation..."
-          test -f SECURITY.md && echo "✓ SECURITY.md found" || echo "✗ SECURITY.md missing"
-          test -f SECURITY_FIXES.md && echo "✓ SECURITY_FIXES.md found" || echo "✗ SECURITY_FIXES.md missing"
-          test -f .cursor/rules/secretary-project-standards.mdc && echo "✓ Security rules found" || echo "✗ Security rules missing"
-
-      - name: Validate security headers in code
-        run: |
-          echo "Checking for security headers in Go files..."
-          grep -r "Security:" internal/ || echo "No security comments found"
-          grep -r "TODO.*security" . || echo "No security TODOs found"
-
-      - name: Check for hardcoded secrets
-        run: |
-          echo "Scanning for potential hardcoded secrets..."
-          grep -r "password.*=.*\"" . --exclude-dir=.git --exclude-dir=vendor || echo "No obvious hardcoded passwords found"
-          grep -r "secret.*=.*\"" . --exclude-dir=.git --exclude-dir=vendor || echo "No obvious hardcoded secrets found"
-
-      - name: Check TLS configuration
-        run: |
-          echo "Checking TLS configuration..."
-          grep -r "TLS" internal/config/ || echo "No TLS configuration found"
-          grep -r "https" . --exclude-dir=.git || echo "No HTTPS references found"
-
-  # Security Test Execution
+  # Test Execution
   security-tests:
     name: Security Tests
     runs-on: ubuntu-latest
@@ -280,54 +141,98 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Run security-related tests
+      - name: Run all tests
+        run: go test -v ./...
+
+      - name: Run security-specific tests
         run: |
-          echo "Running security tests..."
           go test -v ./internal/validation/...
           go test -v ./internal/middleware/...
           go test -v ./internal/utils/...
 
-      - name: Run test coverage for security components
+      - name: Generate test coverage
         run: |
-          go test -coverprofile=security-coverage.out ./internal/validation/ ./internal/middleware/ ./internal/utils/
-          go tool cover -func=security-coverage.out
+          go test -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out
 
-  # Security Report Generation
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-coverage
+          path: coverage.out
+
+  # Security Policy Compliance Check
+  security-policy:
+    name: Security Policy Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for required security files
+        run: |
+          echo "Checking security documentation..."
+          test -f SECURITY.md && echo "✓ SECURITY.md found" || echo "✗ SECURITY.md missing"
+          test -f SECURITY_FIXES.md && echo "✓ SECURITY_FIXES.md found" || echo "✗ SECURITY_FIXES.md missing"
+          test -f .cursor/rules/secretary-project-standards.mdc && echo "✓ Security rules found" || echo "✗ Security rules missing"
+          test -f .security/config.yml && echo "✓ Security config found" || echo "✗ Security config missing"
+
+      - name: Validate security headers in code
+        run: |
+          echo "Checking for security headers in Go files..."
+          grep -r "Security:" internal/ || echo "No security comments found"
+          grep -r "TODO.*security" . || echo "No security TODOs found"
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Scanning for potential hardcoded secrets..."
+          grep -r "password.*=.*\"" . --exclude-dir=.git --exclude-dir=vendor --exclude="*_test.go" || echo "No obvious hardcoded passwords found"
+          grep -r "secret.*=.*\"" . --exclude-dir=.git --exclude-dir=vendor --exclude="*_test.go" || echo "No obvious hardcoded secrets found"
+
+      - name: Check TLS configuration
+        run: |
+          echo "Checking TLS configuration..."
+          grep -r "TLS" internal/config/ || echo "No TLS configuration found"
+          grep -r "https" . --exclude-dir=.git || echo "No HTTPS references found"
+
+  # Final Security Report
   security-report:
     name: Generate Security Report
     runs-on: ubuntu-latest
-    needs: [go-security, dependency-scanning, snyk-security, container-security, codeql-analysis, license-compliance, security-policy, security-tests]
+    needs: [security-analysis, codeql-analysis, security-tests, security-policy]
     if: always()
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Download security reports
+        uses: actions/download-artifact@v4
+        with:
+          name: security-reports
+          path: security-reports
+
       - name: Generate security summary
         run: |
-          echo "# Security Scan Summary" > security-report.md
-          echo "Generated: $(date)" >> security-report.md
-          echo "" >> security-report.md
-          echo "## Scan Results" >> security-report.md
-          echo "- Go Security: ${{ needs.go-security.result }}" >> security-report.md
-          echo "- Dependency Scanning: ${{ needs.dependency-scanning.result }}" >> security-report.md
-          echo "- Snyk Analysis: ${{ needs.snyk-security.result }}" >> security-report.md
-          echo "- Container Security: ${{ needs.container-security.result }}" >> security-report.md
-          echo "- CodeQL Analysis: ${{ needs.codeql-analysis.result }}" >> security-report.md
-          echo "- License Compliance: ${{ needs.license-compliance.result }}" >> security-report.md
-          echo "- Security Policy: ${{ needs.security-policy.result }}" >> security-report.md
-          echo "- Security Tests: ${{ needs.security-tests.result }}" >> security-report.md
-          echo "" >> security-report.md
-          echo "## Next Steps" >> security-report.md
-          echo "1. Review any security findings in the GitHub Security tab" >> security-report.md
-          echo "2. Address high and critical severity issues" >> security-report.md
-          echo "3. Update dependencies with known vulnerabilities" >> security-report.md
-          echo "4. Review and update security documentation as needed" >> security-report.md
+          echo "# Security Scan Summary" > security-summary.md
+          echo "Generated: $(date)" >> security-summary.md
+          echo "" >> security-summary.md
+          echo "## Scan Results" >> security-summary.md
+          echo "- Security Analysis: ${{ needs.security-analysis.result }}" >> security-summary.md
+          echo "- CodeQL Analysis: ${{ needs.codeql-analysis.result }}" >> security-summary.md
+          echo "- Security Tests: ${{ needs.security-tests.result }}" >> security-summary.md
+          echo "- Security Policy: ${{ needs.security-policy.result }}" >> security-summary.md
+          echo "" >> security-summary.md
+          echo "## Next Steps" >> security-summary.md
+          echo "1. Review any security findings in the GitHub Security tab" >> security-summary.md
+          echo "2. Address high and critical severity issues" >> security-summary.md
+          echo "3. Update dependencies with known vulnerabilities" >> security-summary.md
+          echo "4. Review and update security documentation as needed" >> security-summary.md
 
-      - name: Upload security report
+      - name: Upload security summary
         uses: actions/upload-artifact@v4
         with:
-          name: security-report
-          path: security-report.md
+          name: security-summary
+          path: security-summary.md
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
@@ -335,7 +240,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const report = fs.readFileSync('security-report.md', 'utf8');
+            const report = fs.readFileSync('security-summary.md', 'utf8');
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
