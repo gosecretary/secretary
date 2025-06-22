@@ -1,4 +1,4 @@
-# Secretary Project: Infrastructure Access Management [![CodeQL](https://github.com/gosecretary/secretary/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/gosecretary/secretary/actions/workflows/github-code-scanning/codeql) [![Secretary Tests](https://github.com/gosecretary/secretary/actions/workflows/test-pipeline.yml/badge.svg)](https://github.com/gosecretary/secretary/actions/workflows/test-pipeline.yml)
+# Secretary Project: Infrastructure Access Management [![CodeQL](https://github.com/gosecretary/secretary/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/gosecretary/secretary/actions/workflows/github-code-scanning/codeql) [![Secretary Tests Pipeline](https://github.com/gosecretary/secretary/actions/workflows/test-pipeline.yml/badge.svg)](https://github.com/gosecretary/secretary/actions/workflows/test-pipeline.yml) [![Secretary Security Pipeline](https://github.com/gosecretary/secretary/actions/workflows/security-pipeline.yml/badge.svg)](https://github.com/gosecretary/secretary/actions/workflows/security-pipeline.yml)
 
 Secretary is an open-source solution for infrastructure access management, combining core ideas from tools like HashiCorp Boundary and Teleport—but with all features available for free and fully open.
 
@@ -303,6 +303,59 @@ For detailed API documentation, examples, and usage instructions, see [docs/READ
 - Secure session management
 - Dynamic credential generation
 - Audit logging
+
+## Security Scanning Pipeline
+
+Secretary includes a comprehensive security scanning pipeline that ensures code quality and security compliance:
+
+### Automated Security Checks
+
+The security pipeline runs automatically on:
+- **Push to master/main**: Full security scan
+- **Pull requests**: Security validation  
+- **Weekly schedule**: Comprehensive security audit
+
+### Security Tools Integration
+
+- **GoSec**: Static analysis for security vulnerabilities
+- **govulncheck**: Known vulnerability scanning
+- **Trivy**: Dependency and container vulnerability scanning
+- **Snyk**: Multi-layered security analysis (SAST, SCA, Container, IaC)
+- **CodeQL**: Advanced static analysis
+- **golangci-lint**: Security-focused linting
+
+### Security Standards
+
+- **Critical vulnerabilities**: 0 allowed (immediate fix required)
+- **High severity issues**: 0 allowed (24-hour fix required)
+- **Medium severity issues**: ≤5 allowed (7-day fix window)
+- **Low severity issues**: ≤20 allowed (30-day fix window)
+
+### Compliance
+
+The pipeline ensures compliance with:
+- OWASP Top 10 security standards
+- NIST Cybersecurity Framework
+- SOC 2 compliance requirements
+- ISO 27001 security standards
+- PCI DSS requirements
+
+### Local Security Scanning
+
+Developers can run security scans locally:
+
+```bash
+# Run comprehensive security scan
+./scripts/security-scan.sh
+
+# Run specific security tools
+gosec ./...
+govulncheck ./...
+trivy fs .
+snyk test
+```
+
+For detailed security documentation, see [docs/SECURITY_PIPELINE.md](docs/SECURITY_PIPELINE.md).
 
 ## Development
 

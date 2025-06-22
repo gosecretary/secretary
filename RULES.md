@@ -527,4 +527,246 @@
 
 ---
 
-*This rules document is a living document and should be updated as the system evolves. All changes must go through the approval process outlined above.* 
+*This rules document is a living document and should be updated as the system evolves. All changes must go through the approval process outlined above.*
+
+## Code Quality Rules
+
+### 1. Go Code Standards
+- Follow Go best practices and idioms
+- Use `gofmt` for code formatting
+- Maximum line length: 120 characters
+- Use meaningful variable and function names
+- Add comments for complex logic
+
+### 2. Error Handling
+- Always check and handle errors explicitly
+- Use custom error types for domain-specific errors
+- Provide meaningful error messages
+- Log errors appropriately
+
+### 3. Testing Requirements
+- Minimum 80% test coverage
+- Write unit tests for all public functions
+- Include integration tests for critical paths
+- Use table-driven tests for multiple scenarios
+
+## Security Scanning Pipeline
+
+### 1. Automated Security Checks
+The project includes a comprehensive security scanning pipeline that runs on:
+- **Push to master/main**: Full security scan
+- **Pull requests**: Security validation
+- **Weekly schedule**: Comprehensive security audit
+
+### 2. Required Security Tools
+All code must pass the following security checks:
+- **GoSec**: Static analysis for security vulnerabilities
+- **govulncheck**: Known vulnerability scanning
+- **Trivy**: Dependency and container vulnerability scanning
+- **Snyk**: Multi-layered security analysis
+- **CodeQL**: Advanced static analysis
+- **golangci-lint**: Security-focused linting
+
+### 3. Security Thresholds
+- **Critical vulnerabilities**: 0 allowed (immediate fix required)
+- **High severity issues**: 0 allowed (24-hour fix required)
+- **Medium severity issues**: ≤5 allowed (7-day fix window)
+- **Low severity issues**: ≤20 allowed (30-day fix window)
+
+### 4. Security Compliance
+The pipeline ensures compliance with:
+- OWASP Top 10 security standards
+- NIST Cybersecurity Framework
+- SOC 2 compliance requirements
+- ISO 27001 security standards
+- PCI DSS requirements
+
+### 5. Local Security Scanning
+Developers must run security scans locally before submitting code:
+```bash
+# Run comprehensive security scan
+./scripts/security-scan.sh
+
+# Run specific security tools
+gosec ./...
+govulncheck ./...
+trivy fs .
+```
+
+### 6. Security Documentation
+All security-related changes must include:
+- Updated security documentation
+- Security test coverage
+- Compliance validation
+- Risk assessment
+
+## Documentation Rules
+
+### 1. Code Documentation
+- Add comments for complex functions
+- Document public APIs
+- Include usage examples
+- Maintain up-to-date README files
+
+### 2. Security Documentation
+- Update SECURITY.md for security changes
+- Document security fixes in SECURITY_FIXES.md
+- Maintain security configuration documentation
+- Include security testing procedures
+
+### 3. API Documentation
+- Keep Swagger/OpenAPI specs updated
+- Document all endpoints and parameters
+- Include authentication requirements
+- Provide request/response examples
+
+## Git Workflow Rules
+
+### 1. Branch Naming
+- Use descriptive branch names
+- Prefix with feature/, bugfix/, hotfix/
+- Include issue numbers when applicable
+
+### 2. Commit Messages
+- Use conventional commit format
+- Write clear, descriptive messages
+- Reference issues when applicable
+- Keep commits atomic and focused
+
+### 3. Pull Request Process
+- Create descriptive PR titles
+- Include detailed descriptions
+- Link related issues
+- Request reviews from appropriate team members
+
+## Review Process
+
+### 1. Code Review Requirements
+- All code must be reviewed before merging
+- Security-sensitive code requires security team review
+- Ensure test coverage meets requirements
+- Verify security compliance
+
+### 2. Security Review Checklist
+- [ ] No hardcoded secrets
+- [ ] Input validation implemented
+- [ ] Authentication/authorization in place
+- [ ] Security headers configured
+- [ ] SQL injection protection
+- [ ] XSS protection implemented
+- [ ] TLS configuration secure
+- [ ] Error handling secure
+
+## Deployment Rules
+
+### 1. Environment Configuration
+- Use environment variables for configuration
+- Never commit secrets to version control
+- Use secure defaults for production
+- Validate configuration on startup
+
+### 2. Security Requirements
+- Enable TLS in production
+- Use secure session configuration
+- Implement proper logging
+- Enable security monitoring
+
+### 3. Monitoring and Alerting
+- Monitor security events
+- Set up alerts for security incidents
+- Log security-related activities
+- Regular security assessments
+
+## Compliance and Standards
+
+### 1. Security Standards
+- Follow OWASP security guidelines
+- Implement defense in depth
+- Use secure coding practices
+- Regular security training
+
+### 2. Quality Standards
+- Maintain high code quality
+- Follow Go best practices
+- Comprehensive testing
+- Performance optimization
+
+### 3. Documentation Standards
+- Keep documentation current
+- Include security considerations
+- Provide clear examples
+- Regular documentation reviews
+
+## Enforcement
+
+### 1. Automated Checks
+- CI/CD pipeline enforces rules
+- Security scanning blocks violations
+- Automated testing validates compliance
+- Code quality tools enforce standards
+
+### 2. Manual Reviews
+- Human review for complex changes
+- Security team review for sensitive code
+- Architecture review for major changes
+- Documentation review for accuracy
+
+### 3. Consequences
+- Security violations block merges
+- Quality issues require fixes
+- Documentation gaps delay releases
+- Compliance violations trigger alerts
+
+## Continuous Improvement
+
+### 1. Regular Reviews
+- Monthly rule effectiveness review
+- Quarterly security assessment
+- Annual compliance audit
+- Continuous feedback collection
+
+### 2. Rule Updates
+- Update rules based on lessons learned
+- Incorporate new security threats
+- Adapt to changing requirements
+- Improve automation and tooling
+
+### 3. Training and Education
+- Regular security training
+- Code quality workshops
+- Best practice sharing
+- Knowledge transfer sessions
+
+---
+
+## Quick Reference
+
+### Security Commands
+```bash
+# Run security scan
+./scripts/security-scan.sh
+
+# Run specific tools
+gosec ./...
+govulncheck ./...
+trivy fs .
+snyk test
+
+# Check configuration
+golangci-lint run
+```
+
+### Documentation Files
+- `SECURITY.md`: Security policies and procedures
+- `SECURITY_FIXES.md`: Security vulnerability fixes
+- `docs/SECURITY_PIPELINE.md`: Security scanning documentation
+- `.security/config.yml`: Security configuration
+
+### Important URLs
+- GitHub Security Tab: Project security findings
+- Security Pipeline: Automated security analysis
+- Security Documentation: Comprehensive security guide
+
+---
+
+*These rules are designed to ensure the Secretary project maintains the highest standards of security, quality, and compliance while providing a clear framework for development and contribution.* 

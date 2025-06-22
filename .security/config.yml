@@ -1,0 +1,198 @@
+# Secretary Security Configuration
+# This file defines security policies, thresholds, and exclusions for the project
+
+version: "1.0"
+project: "secretary"
+description: "Security configuration for Secretary PAM system"
+
+# Security Policy Definitions
+policies:
+  # Vulnerability Severity Thresholds
+  severity_thresholds:
+    critical: 0      # No critical vulnerabilities allowed
+    high: 0          # No high severity vulnerabilities allowed
+    medium: 5        # Maximum 5 medium severity issues
+    low: 20          # Maximum 20 low severity issues
+
+  # Code Quality Thresholds
+  code_quality:
+    test_coverage: 80        # Minimum 80% test coverage
+    cyclomatic_complexity: 15 # Maximum cyclomatic complexity
+    function_length: 50       # Maximum function length in lines
+    file_length: 500          # Maximum file length in lines
+
+  # Security Headers Requirements
+  security_headers:
+    required:
+      - "Content-Security-Policy"
+      - "X-Frame-Options"
+      - "X-Content-Type-Options"
+      - "X-XSS-Protection"
+      - "Referrer-Policy"
+      - "Permissions-Policy"
+    optional:
+      - "Strict-Transport-Security"
+
+  # Authentication Requirements
+  authentication:
+    password_min_length: 8
+    password_complexity: true
+    session_timeout: 3600
+    max_login_attempts: 5
+    lockout_duration: 900
+
+  # Encryption Requirements
+  encryption:
+    tls_min_version: "1.2"
+    hash_algorithm: "bcrypt"
+    bcrypt_cost: 12
+    key_length: 32
+
+# Tool-Specific Configurations
+tools:
+  # Snyk Configuration
+  snyk:
+    fail_on: "high"
+    monitor: true
+    report: true
+    exclude:
+      - "test/**"
+      - "docs/**"
+      - "scripts/**"
+
+  # Trivy Configuration
+  trivy:
+    severity: ["CRITICAL", "HIGH", "MEDIUM"]
+    exit_code: 1
+    format: "sarif"
+    ignore_unfixed: false
+    vuln_type: ["os", "library"]
+
+  # GoSec Configuration
+  gosec:
+    include: ["G101", "G102", "G103", "G104", "G106", "G107", "G108", "G109", "G110", "G111", "G112", "G113", "G114", "G201", "G202", "G203", "G204", "G301", "G302", "G303", "G304", "G305", "G306", "G307", "G401", "G402", "G403", "G404", "G501", "G502", "G503", "G504", "G505", "G601"]
+    exclude: []
+    nosec: false
+
+  # CodeQL Configuration
+  codeql:
+    languages: ["go"]
+    queries: ["security-extended", "security-and-quality"]
+    build_mode: "autobuild"
+
+# Exclusions and Allowlists
+exclusions:
+  # False positive exclusions
+  false_positives:
+    - "G101: Potential hardcoded credentials" # Test data
+    - "G204: Subprocess launched with variable" # Intentional command execution
+    - "G304: Potential file inclusion via variable" # Safe file operations
+
+  # Path exclusions
+  paths:
+    - "test/**"
+    - "docs/**"
+    - "scripts/**"
+    - "vendor/**"
+    - "node_modules/**"
+    - "*.test.go"
+    - "*.mock.go"
+
+  # Dependency exclusions
+  dependencies:
+    - "github.com/golang/mock" # Test dependency
+    - "github.com/stretchr/testify" # Test dependency
+
+# Compliance Requirements
+compliance:
+  standards:
+    - "OWASP Top 10"
+    - "NIST Cybersecurity Framework"
+    - "SOC 2"
+    - "ISO 27001"
+    - "PCI DSS"
+
+  requirements:
+    - "All code must pass security linting"
+    - "No critical or high severity vulnerabilities"
+    - "All dependencies must be up to date"
+    - "Security headers must be implemented"
+    - "TLS must be enforced in production"
+    - "Input validation must be implemented"
+    - "SQL injection protection must be in place"
+    - "XSS protection must be implemented"
+    - "CSRF protection must be implemented"
+
+# Reporting Configuration
+reporting:
+  formats:
+    - "sarif"
+    - "json"
+    - "html"
+    - "markdown"
+
+  destinations:
+    - "github-security"
+    - "artifact"
+    - "pr-comment"
+
+  thresholds:
+    fail_on_critical: true
+    fail_on_high: true
+    fail_on_medium: false
+    fail_on_low: false
+
+# Remediation Guidelines
+remediation:
+  critical:
+    timeframe: "immediate"
+    action: "block_merge"
+    description: "Critical vulnerabilities must be fixed before merge"
+
+  high:
+    timeframe: "24_hours"
+    action: "block_merge"
+    description: "High severity vulnerabilities must be fixed within 24 hours"
+
+  medium:
+    timeframe: "7_days"
+    action: "warn"
+    description: "Medium severity vulnerabilities should be fixed within 7 days"
+
+  low:
+    timeframe: "30_days"
+    action: "inform"
+    description: "Low severity vulnerabilities should be addressed within 30 days"
+
+# Security Testing Requirements
+testing:
+  required_tests:
+    - "authentication"
+    - "authorization"
+    - "input_validation"
+    - "sql_injection"
+    - "xss_protection"
+    - "csrf_protection"
+    - "session_management"
+    - "encryption"
+    - "tls_configuration"
+
+  coverage_requirements:
+    security_components: 90
+    overall: 80
+
+# Monitoring and Alerting
+monitoring:
+  alerts:
+    - "critical_vulnerability_detected"
+    - "high_vulnerability_detected"
+    - "dependency_vulnerability_detected"
+    - "security_test_failure"
+    - "compliance_violation"
+
+  metrics:
+    - "vulnerability_count_by_severity"
+    - "remediation_time"
+    - "test_coverage"
+    - "security_header_compliance"
+    - "dependency_update_frequency" 
