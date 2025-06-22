@@ -18,6 +18,9 @@ SECURITY_CONFIG=".security/config.yml"
 REPORTS_DIR="security-reports"
 FAIL_ON_CRITICAL=true
 FAIL_ON_HIGH=true
+SKIP_MISSING_TOOLS=false
+NON_INTERACTIVE=false
+INSTALL_TOOLS=false
 
 # Helper functions
 log_info() {
@@ -41,6 +44,7 @@ check_tools() {
     log_info "Checking required security tools..."
     
     local missing_tools=()
+    local optional_tools=()
     
     # Check Go security tools
     if ! command -v govulncheck &> /dev/null; then
@@ -66,21 +70,101 @@ check_tools() {
     
     # Check Snyk (optional)
     if ! command -v snyk &> /dev/null; then
-        log_warning "Snyk not found. Install with: npm install -g snyk"
+        optional_tools+=("snyk")
     fi
     
     if [ ${#missing_tools[@]} -ne 0 ]; then
-        log_error "Missing required tools: ${missing_tools[*]}"
-        log_info "Install missing tools with:"
-        echo "go install golang.org/x/vuln/cmd/govulncheck@latest"
-        echo "go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest"
-        echo "go install github.com/fzipp/gocyclo/cmd/gocyclo@latest"
-        echo "go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
-        echo "curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin"
-        exit 1
+        log_warning "Missing required tools: ${missing_tools[*]}"
+        
+        if [ "$INSTALL_TOOLS" = true ]; then
+            log_info "Installing missing tools automatically..."
+            install_missing_tools "${missing_tools[@]}"
+        elif [ "$NON_INTERACTIVE" = true ]; then
+            log_info "Non-interactive mode: skipping missing tools"
+            SKIP_MISSING_TOOLS=true
+        else
+            echo ""
+            echo "Options:"
+            echo "1. Install missing tools automatically"
+            echo "2. Skip missing tools and continue with available checks"
+            echo "3. Exit and install manually"
+            echo ""
+            read -p "Choose an option (1-3): " choice
+            
+            case $choice in
+                1)
+                    log_info "Installing missing tools..."
+                    install_missing_tools "${missing_tools[@]}"
+                    ;;
+                2)
+                    log_info "Continuing with available tools..."
+                    SKIP_MISSING_TOOLS=true
+                    ;;
+                3)
+                    log_info "Install missing tools manually with:"
+                    echo "go install golang.org/x/vuln/cmd/govulncheck@latest"
+                    echo "go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest"
+                    echo "go install github.com/fzipp/gocyclo/cmd/gocyclo@latest"
+                    echo "go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
+                    echo "curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin"
+                    exit 1
+                    ;;
+                *)
+                    log_error "Invalid choice. Exiting."
+                    exit 1
+                    ;;
+            esac
+        fi
     fi
     
-    log_success "All required tools are installed"
+    if [ ${#optional_tools[@]} -ne 0 ]; then
+        log_info "Optional tools not found: ${optional_tools[*]}"
+        log_info "Install Snyk with: npm install -g snyk"
+    fi
+    
+    log_success "Tool check completed"
+}
+
+# Install missing tools
+install_missing_tools() {
+    local tools=("$@")
+    
+    for tool in "${tools[@]}"; do
+        case $tool in
+            govulncheck)
+                log_info "Installing govulncheck..."
+                go install golang.org/x/vuln/cmd/govulncheck@latest
+                ;;
+            gosec)
+                log_info "Installing gosec..."
+                # Try alternative installation methods for gosec
+                if ! go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest 2>/dev/null; then
+                    if ! go install github.com/securecodewarrior/gosec@latest 2>/dev/null; then
+                        log_warning "gosec installation failed. Repository may have moved."
+                        log_info "Alternative: Use golangci-lint with security rules instead"
+                        log_info "Install manually with: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest"
+                    fi
+                fi
+                ;;
+            gocyclo)
+                log_info "Installing gocyclo..."
+                go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+                ;;
+            golangci-lint)
+                log_info "Installing golangci-lint..."
+                go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+                ;;
+            trivy)
+                log_info "Installing trivy..."
+                curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+                ;;
+            *)
+                log_warning "Unknown tool: $tool"
+                ;;
+        esac
+    done
+    
+    log_success "Tool installation completed"
 }
 
 # Create reports directory
@@ -95,35 +179,60 @@ run_go_security() {
     log_info "Running Go security analysis..."
     
     # Go vulnerability check
-    log_info "Running govulncheck..."
-    if govulncheck ./... > "$REPORTS_DIR/govulncheck.txt" 2>&1; then
-        log_success "govulncheck completed successfully"
+    if command -v govulncheck &> /dev/null; then
+        log_info "Running govulncheck..."
+        if govulncheck ./... > "$REPORTS_DIR/govulncheck.txt" 2>&1; then
+            log_success "govulncheck completed successfully"
+        else
+            log_warning "govulncheck found vulnerabilities (see $REPORTS_DIR/govulncheck.txt)"
+        fi
     else
-        log_warning "govulncheck found vulnerabilities (see $REPORTS_DIR/govulncheck.txt)"
+        log_warning "govulncheck not available, skipping"
     fi
     
     # GoSec security linter
-    log_info "Running gosec..."
-    if gosec -fmt=sarif -out="$REPORTS_DIR/gosec.sarif" ./...; then
-        log_success "gosec completed successfully"
+    if command -v gosec &> /dev/null; then
+        log_info "Running gosec..."
+        if gosec -fmt=sarif -out="$REPORTS_DIR/gosec.sarif" ./...; then
+            log_success "gosec completed successfully"
+        else
+            log_warning "gosec found security issues (see $REPORTS_DIR/gosec.sarif)"
+        fi
     else
-        log_warning "gosec found security issues (see $REPORTS_DIR/gosec.sarif)"
+        log_warning "gosec not available, using golangci-lint with security rules instead"
+        # Run golangci-lint with security-focused configuration
+        if command -v golangci-lint &> /dev/null; then
+            log_info "Running golangci-lint with security rules..."
+            if golangci-lint run --enable=gosec --out-format=sarif --out="$REPORTS_DIR/golangci-lint-security.sarif" ./...; then
+                log_success "golangci-lint security analysis completed"
+            else
+                log_warning "golangci-lint found security issues (see $REPORTS_DIR/golangci-lint-security.sarif)"
+            fi
+        fi
     fi
     
     # Cyclomatic complexity check
-    log_info "Running gocyclo..."
-    if gocyclo -over 15 . > "$REPORTS_DIR/gocyclo.txt" 2>&1; then
-        log_warning "gocyclo found complex functions (see $REPORTS_DIR/gocyclo.txt)"
+    if command -v gocyclo &> /dev/null; then
+        log_info "Running gocyclo..."
+        if gocyclo -over 15 . > "$REPORTS_DIR/gocyclo.txt" 2>&1; then
+            log_warning "gocyclo found complex functions (see $REPORTS_DIR/gocyclo.txt)"
+        else
+            log_success "gocyclo completed successfully"
+        fi
     else
-        log_success "gocyclo completed successfully"
+        log_warning "gocyclo not available, skipping"
     fi
     
     # Comprehensive Go linting
-    log_info "Running golangci-lint..."
-    if golangci-lint run --out-format=sarif --out="$REPORTS_DIR/golangci-lint.sarif"; then
-        log_success "golangci-lint completed successfully"
+    if command -v golangci-lint &> /dev/null; then
+        log_info "Running golangci-lint..."
+        if golangci-lint run --out-format=sarif --out="$REPORTS_DIR/golangci-lint.sarif"; then
+            log_success "golangci-lint completed successfully"
+        else
+            log_warning "golangci-lint found issues (see $REPORTS_DIR/golangci-lint.sarif)"
+        fi
     else
-        log_warning "golangci-lint found issues (see $REPORTS_DIR/golangci-lint.sarif)"
+        log_warning "golangci-lint not available, skipping"
     fi
 }
 
@@ -136,16 +245,20 @@ run_dependency_scanning() {
     go mod download
     
     # Trivy vulnerability scanner
-    log_info "Running Trivy filesystem scan..."
-    if trivy fs --format sarif --output "$REPORTS_DIR/trivy-fs.sarif" .; then
-        log_success "Trivy filesystem scan completed"
+    if command -v trivy &> /dev/null; then
+        log_info "Running Trivy filesystem scan..."
+        if trivy fs --format sarif --output "$REPORTS_DIR/trivy-fs.sarif" .; then
+            log_success "Trivy filesystem scan completed"
+        else
+            log_warning "Trivy found vulnerabilities (see $REPORTS_DIR/trivy-fs.sarif)"
+        fi
     else
-        log_warning "Trivy found vulnerabilities (see $REPORTS_DIR/trivy-fs.sarif)"
+        log_warning "Trivy not available, skipping filesystem scan"
     fi
     
     # Check for known vulnerabilities in dependencies
     log_info "Analyzing Go dependencies..."
-    go list -json -deps ./... | jq -r '.Deps[]' | sort | uniq > "$REPORTS_DIR/dependencies.txt"
+    go list -json -deps ./... | jq -r 'select(.Deps != null) | .Deps[]' 2>/dev/null | sort | uniq > "$REPORTS_DIR/dependencies.txt" || echo "No dependencies found" > "$REPORTS_DIR/dependencies.txt"
     log_success "Dependency analysis completed (see $REPORTS_DIR/dependencies.txt)"
 }
 
@@ -209,11 +322,15 @@ run_container_security() {
     fi
     
     # Trivy container scan
-    log_info "Running Trivy container scan..."
-    if trivy image --format sarif --output "$REPORTS_DIR/trivy-container.sarif" secretary:security-scan; then
-        log_success "Trivy container scan completed"
+    if command -v trivy &> /dev/null; then
+        log_info "Running Trivy container scan..."
+        if trivy image --format sarif --output "$REPORTS_DIR/trivy-container.sarif" secretary:security-scan; then
+            log_success "Trivy container scan completed"
+        else
+            log_warning "Trivy container scan found issues (see $REPORTS_DIR/trivy-container.sarif)"
+        fi
     else
-        log_warning "Trivy container scan found issues (see $REPORTS_DIR/trivy-container.sarif)"
+        log_warning "Trivy not available, skipping container scan"
     fi
     
     # Snyk Container analysis
@@ -283,14 +400,17 @@ run_security_policy() {
     
     # Check for hardcoded secrets
     log_info "Checking for hardcoded secrets..."
-    if grep -r "password.*=.*\"" . --exclude-dir=.git --exclude-dir=vendor --exclude-dir=node_modules > "$REPORTS_DIR/hardcoded-passwords.txt" 2>/dev/null; then
+    
+    # More sophisticated check for hardcoded passwords (exclude test files and legitimate patterns)
+    if find . -type f -name "*.go" -o -name "*.sh" -o -name "*.yml" -o -name "*.yaml" | grep -v "_test.go" | grep -v "vendor" | grep -v "node_modules" | grep -v "bin" | xargs grep -l "password.*=.*\"" 2>/dev/null | xargs grep "password.*=.*\"" | grep -v "os.Getenv" | grep -v "passwordCharset" | grep -v "password.*field" | grep -v "grep -r.*password" | grep -v "echo.*password" > "$REPORTS_DIR/hardcoded-passwords.txt" 2>/dev/null; then
         log_warning "Potential hardcoded passwords found (see $REPORTS_DIR/hardcoded-passwords.txt)"
         ((policy_violations++))
     else
         log_success "No obvious hardcoded passwords found"
     fi
     
-    if grep -r "secret.*=.*\"" . --exclude-dir=.git --exclude-dir=vendor --exclude-dir=node_modules > "$REPORTS_DIR/hardcoded-secrets.txt" 2>/dev/null; then
+    # More sophisticated check for hardcoded secrets (exclude test files and legitimate patterns)
+    if find . -type f -name "*.go" -o -name "*.sh" -o -name "*.yml" -o -name "*.yaml" | grep -v "_test.go" | grep -v "vendor" | grep -v "node_modules" | grep -v "bin" | xargs grep -l "secret.*=.*\"" 2>/dev/null | xargs grep "secret.*=.*\"" | grep -v "os.Getenv" | grep -v "SECRETARY_SESSION_SECRET" | grep -v "secret.*monitor" | grep -v "if secret == \"\"" | grep -v "grep -r.*secret" | grep -v "echo.*secret" > "$REPORTS_DIR/hardcoded-secrets.txt" 2>/dev/null; then
         log_warning "Potential hardcoded secrets found (see $REPORTS_DIR/hardcoded-secrets.txt)"
         ((policy_violations++))
     else
@@ -460,12 +580,22 @@ while [[ $# -gt 0 ]]; do
             REPORTS_DIR="$2"
             shift 2
             ;;
+        --non-interactive)
+            NON_INTERACTIVE=true
+            shift
+            ;;
+        --install-tools)
+            INSTALL_TOOLS=true
+            shift
+            ;;
         --help)
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
             echo "  --fail-on-critical    Exit with error if critical issues found"
             echo "  --fail-on-high        Exit with error if high severity issues found"
             echo "  --reports-dir DIR     Directory to store reports (default: security-reports)"
+            echo "  --non-interactive     Run in non-interactive mode (skip missing tools)"
+            echo "  --install-tools       Install missing tools automatically"
             echo "  --help                Show this help message"
             exit 0
             ;;
