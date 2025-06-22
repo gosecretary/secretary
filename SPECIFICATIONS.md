@@ -8,11 +8,12 @@
 5. [Data Models and Validation](#data-models-and-validation)
 6. [Authentication and Authorization](#authentication-and-authorization)
 7. [Session Management](#session-management)
-8. [Access Control Rules](#access-control-rules)
-9. [Audit and Compliance](#audit-and-compliance)
-10. [Operational Rules](#operational-rules)
-11. [Deployment Specifications](#deployment-specifications)
-12. [Testing Requirements](#testing-requirements)
+8. [TCP Proxy Specifications](#tcp-proxy-specifications)
+9. [Access Control Rules](#access-control-rules)
+10. [Audit and Compliance](#audit-and-compliance)
+11. [Operational Rules](#operational-rules)
+12. [Deployment Specifications](#deployment-specifications)
+13. [Testing Requirements](#testing-requirements)
 
 ## System Overview
 
@@ -314,11 +315,342 @@ type AccessRequest struct {
 5. **Audit Logging**: Server logs the access attempt
 
 ### Session Management
-- **Creation**: On successful login
-- **Validation**: On every protected request
-- **Expiration**: Automatic cleanup of expired sessions
-- **Termination**: Manual termination or automatic on logout
-- **Security**: Session ID rotation on privilege changes
+
+#### Session Lifecycle
+1. **Creation**: Session created on successful authentication
+2. **Validation**: Session validated on each request
+3. **Modification**: Session updated with activity timestamps
+4. **Termination**: Session terminated on logout or timeout
+5. **Cleanup**: Expired sessions automatically removed
+
+#### Session Security
+- **Session ID**: Cryptographically secure random UUID
+- **Expiration**: Configurable timeout (default: 24 hours)
+- **Inactivity**: Automatic termination after 30 minutes of inactivity
+- **Concurrent**: Maximum 3 active sessions per user
+- **IP Binding**: Session bound to originating IP address
+- **Rotation**: Session ID rotation on privilege changes
+
+#### Session Data Model
+```go
+type Session struct {
+    ID             string    `json:"id" validate:"required,uuid"`
+    UserID         string    `json:"user_id" validate:"required,uuid"`
+    ResourceID     string    `json:"resource_id" validate:"required,uuid"`
+    StartTime      time.Time `json:"start_time"`
+    EndTime        time.Time `json:"end_time,omitempty"`
+    Status         string    `json:"status" validate:"required,oneof=active completed terminated"`
+    ClientIP       string    `json:"client_ip" validate:"required,ip"`
+    ClientMetadata string    `json:"client_metadata,omitempty"`
+    AuditPath      string    `json:"audit_path,omitempty"`
+    CreatedAt      time.Time `json:"created_at"`
+}
+```
+
+## TCP Proxy Specifications
+
+### Overview
+The TCP Proxy component provides secure, monitored access to target resources through Secretary. It acts as a transparent gateway that intercepts, analyzes, and records all traffic while maintaining the original protocol functionality.
+
+### Architecture
+```
+Client → Secretary Proxy → Target Server
+         ↓
+    Command Analysis
+         ↓
+    Risk Assessment
+         ↓
+    Security Alerts
+         ↓
+    Session Recording
+```
+
+### Supported Protocols
+
+#### 1. SSH Protocol
+- **Port**: 22 (configurable)
+- **Authentication**: Password, public key, ephemeral credentials
+- **Command Interception**: Full command line analysis
+- **Risk Analysis**: Shell command pattern matching
+- **Blocking**: Automatic blocking of dangerous commands
+
+#### 2. MySQL Protocol
+- **Port**: 3306 (configurable)
+- **Authentication**: Username/password, SSL
+- **Query Interception**: SQL query analysis
+- **Risk Analysis**: SQL injection detection, dangerous operations
+- **Blocking**: Critical SQL operations blocked
+
+#### 3. PostgreSQL Protocol
+- **Port**: 5432 (configurable)
+- **Authentication**: Username/password, SSL
+- **Query Interception**: SQL query analysis
+- **Risk Analysis**: SQL injection detection, dangerous operations
+- **Blocking**: Critical SQL operations blocked
+
+#### 4. Generic TCP Protocol
+- **Port**: Any (configurable)
+- **Authentication**: None (basic monitoring only)
+- **Traffic Analysis**: Basic pattern detection
+- **Risk Analysis**: Generic suspicious pattern detection
+- **Blocking**: Limited blocking capabilities
+
+### Proxy Lifecycle
+
+#### 1. Proxy Creation
+```go
+type ProxyConnection struct {
+    ID           string    `json:"id" validate:"required,uuid"`
+    SessionID    string    `json:"session_id" validate:"required,uuid"`
+    UserID       string    `json:"user_id" validate:"required,uuid"`
+    ResourceID   string    `json:"resource_id" validate:"required,uuid"`
+    Protocol     string    `json:"protocol" validate:"required,oneof=ssh mysql postgresql tcp"`
+    LocalPort    int       `json:"local_port" validate:"required,min=1024,max=65535"`
+    RemoteHost   string    `json:"remote_host" validate:"required,hostname"`
+    RemotePort   int       `json:"remote_port" validate:"required,min=1,max=65535"`
+    Status       string    `json:"status" validate:"required,oneof=created active stopped error"`
+    BytesIn      int64     `json:"bytes_in"`
+    BytesOut     int64     `json:"bytes_out"`
+    LastActivity time.Time `json:"last_activity"`
+    CreatedAt    time.Time `json:"created_at"`
+}
+```
+
+#### 2. Port Allocation
+- **Range**: 10000-20000 (configurable)
+- **Strategy**: Sequential port scanning
+- **Conflict Resolution**: Automatic port selection
+- **Validation**: Port availability verification
+
+#### 3. Connection Handling
+- **Listener**: TCP listener on allocated port
+- **Acceptance**: Accept client connections
+- **Target Connection**: Establish connection to target server
+- **Bidirectional**: Maintain bidirectional data flow
+- **Cleanup**: Automatic connection cleanup on termination
+
+### Command Analysis and Security
+
+#### 1. SSH Command Analysis
+```go
+// Critical Risk Patterns (Auto-blocked)
+criticalPatterns := []string{
+    `rm\s+-rf\s+/`,          // rm -rf /
+    `:\(\)\{\s*:\|\:&\s*\}`, // fork bomb
+    `mkfs\.`,                // format filesystem
+    `dd\s+if=.*of=/dev/`,    // direct disk access
+    `chmod\s+777\s+/`,       // dangerous permissions
+}
+
+// High Risk Patterns (Logged)
+highRiskPatterns := []string{
+    `sudo\s+`,               // privilege escalation
+    `su\s+`,                 // user switching
+    `rm\s+-rf`,              // recursive deletion
+    `chmod\s+[0-9]+`,        // permission changes
+    `passwd\s+`,             // password changes
+    `useradd\s+`,            // user creation
+    `systemctl\s+`,          // service management
+    `iptables\s+`,           // firewall changes
+}
+```
+
+#### 2. SQL Command Analysis
+```go
+// Critical Risk Patterns (Auto-blocked)
+criticalPatterns := []string{
+    "DROP DATABASE",
+    "DROP SCHEMA",
+    "TRUNCATE",
+    "DELETE FROM.*WHERE.*1=1",
+    "UPDATE.*SET.*WHERE.*1=1",
+    "SHUTDOWN",
+}
+
+// High Risk Patterns (Logged)
+highRiskPatterns := []string{
+    "DROP TABLE",
+    "DROP VIEW",
+    "ALTER TABLE.*DROP",
+    "DELETE FROM",
+    "UPDATE.*SET",
+    "GRANT.*ALL",
+    "REVOKE",
+    "CREATE USER",
+    "DROP USER",
+}
+```
+
+#### 3. Risk Assessment
+- **Low Risk**: Basic commands, read operations
+- **Medium Risk**: System information access
+- **High Risk**: Administrative operations
+- **Critical Risk**: Destructive operations (auto-blocked)
+
+### Session Recording
+
+#### 1. Recording Format
+- **Format**: Text-based session logs
+- **Content**: All commands and responses
+- **Metadata**: Timestamps, user info, session info
+- **Storage**: File-based with configurable retention
+
+#### 2. Recording Lifecycle
+```go
+type SessionRecording struct {
+    ID            string    `json:"id" validate:"required,uuid"`
+    SessionID     string    `json:"session_id" validate:"required,uuid"`
+    UserID        string    `json:"user_id" validate:"required,uuid"`
+    ResourceID    string    `json:"resource_id" validate:"required,uuid"`
+    RecordingPath string    `json:"recording_path"`
+    Format        string    `json:"format" validate:"required,oneof=text binary asciinema"`
+    Size          int64     `json:"size"`
+    Duration      int64     `json:"duration"`
+    CommandCount  int       `json:"command_count"`
+    CreatedAt     time.Time `json:"created_at"`
+}
+```
+
+#### 3. Recording Operations
+- **Start**: Automatic on proxy start
+- **Write**: Real-time command logging
+- **Stop**: Automatic on proxy stop
+- **Retrieve**: API-based recording access
+- **Delete**: Configurable retention policy
+
+### Security Alerts
+
+#### 1. Alert Types
+```go
+type SecurityAlert struct {
+    ID          string    `json:"id" validate:"required,uuid"`
+    SessionID   string    `json:"session_id" validate:"required,uuid"`
+    CommandID   string    `json:"command_id,omitempty"`
+    UserID      string    `json:"user_id" validate:"required,uuid"`
+    ResourceID  string    `json:"resource_id" validate:"required,uuid"`
+    AlertType   string    `json:"alert_type" validate:"required,oneof=blocked_command suspicious_activity data_exfiltration privilege_escalation"`
+    Severity    string    `json:"severity" validate:"required,oneof=low medium high critical"`
+    Title       string    `json:"title" validate:"required,max=200"`
+    Description string    `json:"description" validate:"required,max=1000"`
+    RawData     string    `json:"raw_data"`
+    Action      string    `json:"action" validate:"required,oneof=logged blocked terminated alerted"`
+    CreatedAt   time.Time `json:"created_at"`
+}
+```
+
+#### 2. Alert Triggers
+- **Blocked Commands**: Critical risk commands
+- **Suspicious Activity**: Unusual command patterns
+- **Data Exfiltration**: Large data transfers
+- **Privilege Escalation**: Unauthorized privilege changes
+
+#### 3. Alert Actions
+- **Logged**: Information only
+- **Blocked**: Command prevented from execution
+- **Terminated**: Session immediately terminated
+- **Alerted**: Real-time notification to administrators
+
+### Performance Specifications
+
+#### 1. Connection Limits
+- **Concurrent Connections**: 100 per proxy (configurable)
+- **Total Proxies**: 50 per server (configurable)
+- **Connection Timeout**: 30 seconds (configurable)
+- **Idle Timeout**: 5 minutes (configurable)
+
+#### 2. Throughput Limits
+- **Data Rate**: 100 MB/s per connection
+- **Command Rate**: 1000 commands/minute
+- **Alert Rate**: 100 alerts/minute
+- **Recording Rate**: 10 MB/minute
+
+#### 3. Resource Usage
+- **Memory**: 10 MB per active connection
+- **CPU**: 5% per active connection
+- **Disk**: 1 MB per minute of recording
+- **Network**: Minimal overhead (< 1%)
+
+### API Endpoints
+
+#### 1. Proxy Management
+- `POST /api/sessions/{session_id}/proxy` - Create proxy
+- `POST /api/proxies/{proxy_id}/start` - Start proxy
+- `POST /api/proxies/{proxy_id}/stop` - Stop proxy
+- `GET /api/proxies/active` - List active proxies
+- `GET /api/sessions/{session_id}/proxy` - Get session proxy
+
+#### 2. Session Monitoring
+- `GET /api/sessions/{session_id}/commands` - Get session commands
+- `GET /api/commands/high-risk` - Get high-risk commands
+- `POST /api/sessions/{session_id}/recording/start` - Start recording
+- `POST /api/sessions/{session_id}/recording/stop` - Stop recording
+- `GET /api/sessions/{session_id}/recording` - Get recording info
+
+#### 3. Security Alerts
+- `GET /api/sessions/{session_id}/alerts` - Get session alerts
+- `GET /api/alerts/severity/{severity}` - Get alerts by severity
+- `POST /api/alerts/{alert_id}/review` - Mark alert as reviewed
+
+### Configuration
+
+#### 1. Proxy Settings
+```bash
+# Port range for proxy allocation
+SECRETARY_PROXY_PORT_MIN=10000
+SECRETARY_PROXY_PORT_MAX=20000
+
+# Connection limits
+SECRETARY_MAX_CONCURRENT_CONNECTIONS=100
+SECRETARY_MAX_TOTAL_PROXIES=50
+
+# Timeouts
+SECRETARY_CONNECTION_TIMEOUT=30s
+SECRETARY_IDLE_TIMEOUT=5m
+```
+
+#### 2. Security Settings
+```bash
+# Command analysis
+SECRETARY_BLOCK_CRITICAL_COMMANDS=true
+SECRETARY_LOG_ALL_COMMANDS=true
+SECRETARY_ANALYZE_SQL_COMMANDS=true
+
+# Alert settings
+SECRETARY_ALERT_ON_HIGH_RISK=true
+SECRETARY_ALERT_ON_CRITICAL_RISK=true
+SECRETARY_TERMINATE_ON_CRITICAL=false
+```
+
+#### 3. Recording Settings
+```bash
+# Recording configuration
+SECRETARY_RECORDING_ENABLED=true
+SECRETARY_RECORDING_FORMAT=text
+SECRETARY_RECORDING_RETENTION=90d
+SECRETARY_RECORDING_PATH=./data/recordings
+```
+
+### Compliance and Audit
+
+#### 1. Audit Requirements
+- **Command Logging**: All commands logged with timestamps
+- **Session Recording**: Complete session recordings
+- **Access Logging**: All proxy access attempts
+- **Alert Logging**: All security alerts and actions
+- **Performance Logging**: Connection and throughput metrics
+
+#### 2. Compliance Standards
+- **SOC 2**: Access controls and monitoring
+- **PCI DSS**: Secure access to cardholder data
+- **HIPAA**: Protected health information access
+- **SOX**: Financial data access controls
+- **ISO 27001**: Information security management
+
+#### 3. Data Retention
+- **Session Recordings**: 90 days (configurable)
+- **Command Logs**: 1 year (configurable)
+- **Security Alerts**: 3 years (configurable)
+- **Performance Metrics**: 30 days (configurable)
 
 ## Access Control Rules
 
