@@ -165,7 +165,7 @@ grep "csrf_invalid\|csrf_missing" /var/log/secretary/audit.log
 If you discover a security vulnerability, please:
 
 1. **DO NOT** create a public GitHub issue
-2. Email security concerns to: security@yourcompany.com
+2. Email security concerns to: security@gosecretary.com
 3. Include detailed reproduction steps
 4. Allow reasonable time for response before disclosure
 
