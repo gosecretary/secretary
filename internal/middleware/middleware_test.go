@@ -3,6 +3,7 @@ package middleware
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -264,5 +265,62 @@ func TestSessionMiddleware(t *testing.T) {
 
 			assert.Equal(t, tt.expectedCode, w.Code)
 		})
+	}
+}
+
+func TestSecurityHeaders(t *testing.T) {
+	req, err := http.NewRequest("GET", "/test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	handler.ServeHTTP(rr, req)
+
+	// Check that security headers are set
+	headers := rr.Header()
+
+	expectedHeaders := map[string]string{
+		"Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none';",
+		"X-Frame-Options":         "DENY",
+		"X-Content-Type-Options":  "nosniff",
+		"X-XSS-Protection":        "1; mode=block",
+		"Referrer-Policy":         "strict-origin-when-cross-origin",
+		"Permissions-Policy":      "geolocation=(), microphone=(), camera=()",
+	}
+
+	for header, expectedValue := range expectedHeaders {
+		if value := headers.Get(header); value != expectedValue {
+			t.Errorf("SecurityHeaders() %s = %v, want %v", header, value, expectedValue)
+		}
+	}
+
+	// HSTS header should not be set for HTTP requests
+	if hsts := headers.Get("Strict-Transport-Security"); hsts != "" {
+		t.Errorf("SecurityHeaders() Strict-Transport-Security should not be set for HTTP requests, got %v", hsts)
+	}
+}
+
+func TestSecurityHeadersWithTLS(t *testing.T) {
+	req, err := http.NewRequest("GET", "/test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.TLS = &tls.ConnectionState{} // Simulate TLS connection
+
+	rr := httptest.NewRecorder()
+	handler := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	handler.ServeHTTP(rr, req)
+
+	// Check that HSTS header is set for TLS requests
+	if hsts := rr.Header().Get("Strict-Transport-Security"); hsts == "" {
+		t.Error("SecurityHeaders() Strict-Transport-Security should be set for TLS requests")
 	}
 }

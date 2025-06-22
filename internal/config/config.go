@@ -41,60 +41,75 @@ type SecurityConfig struct {
 
 // Load loads configuration from environment variables
 func Load() *Config {
-	// Generate random secret if not provided
-	secret := os.Getenv("JWT_SECRET")
+	// Security: Generate secure secrets if not provided
+	secret := os.Getenv("SECRETARY_SESSION_SECRET")
 	if secret == "" {
-		randomBytes := make([]byte, 32)
-		if _, err := rand.Read(randomBytes); err != nil {
-			utils.Fatal("Failed to generate random secret: " + err.Error())
+		// Generate a secure random secret
+		bytes := make([]byte, 32)
+		if _, err := rand.Read(bytes); err != nil {
+			utils.Fatalf("Failed to generate session secret: %v", err)
 		}
-		secret = base64.URLEncoding.EncodeToString(randomBytes)
-		utils.Warnf("Warning: Invalid JWT_SECRET in environment, generating new secret")
+		secret = base64.URLEncoding.EncodeToString(bytes)
+		utils.Warn("WARNING: No SECRETARY_SESSION_SECRET provided. Generated temporary secret. Set this in production!")
 	}
 
-	// Parse JWT expiration
-	jwtExpiration := 24 * time.Hour // Default to 24 hours
-	if exp := os.Getenv("JWT_EXPIRATION"); exp != "" {
-		if duration, err := time.ParseDuration(exp); err == nil {
-			jwtExpiration = duration
-		} else {
-			utils.Warnf("Warning: Invalid JWT_EXPIRATION in environment, using default")
-		}
+	// Security: Validate secret length
+	if len(secret) < 32 {
+		utils.Fatalf("SECRETARY_SESSION_SECRET must be at least 32 characters long")
 	}
 
-	// Parse timeouts
-	readTimeout := 15 * time.Second
-	if rt := os.Getenv("SERVER_READ_TIMEOUT"); rt != "" {
-		if duration, err := time.ParseDuration(rt); err == nil {
-			readTimeout = duration
+	// Security: Generate CSRF secret if not provided
+	csrfSecret := os.Getenv("SECRETARY_CSRF_SECRET")
+	if csrfSecret == "" {
+		bytes := make([]byte, 32)
+		if _, err := rand.Read(bytes); err != nil {
+			utils.Fatalf("Failed to generate CSRF secret: %v", err)
 		}
+		csrfSecret = base64.URLEncoding.EncodeToString(bytes)
+		utils.Warn("WARNING: No SECRETARY_CSRF_SECRET provided. Generated temporary secret. Set this in production!")
 	}
 
-	writeTimeout := 15 * time.Second
-	if wt := os.Getenv("SERVER_WRITE_TIMEOUT"); wt != "" {
-		if duration, err := time.ParseDuration(wt); err == nil {
-			writeTimeout = duration
-		}
+	// Security: Validate CSRF secret length
+	if len(csrfSecret) < 32 {
+		utils.Fatalf("SECRETARY_CSRF_SECRET must be at least 32 characters long")
 	}
 
-	idleTimeout := 60 * time.Second
-	if it := os.Getenv("SERVER_IDLE_TIMEOUT"); it != "" {
-		if duration, err := time.ParseDuration(it); err == nil {
-			idleTimeout = duration
-		}
+	// Parse timeouts with secure defaults
+	readTimeout, err := time.ParseDuration(getEnv("SECRETARY_READ_TIMEOUT", "15s"))
+	if err != nil {
+		utils.Fatalf("Invalid SECRETARY_READ_TIMEOUT: %v", err)
 	}
 
-	// Validate TLS configuration
-	tlsCertPath := os.Getenv("TLS_CERT_PATH")
-	tlsKeyPath := os.Getenv("TLS_KEY_PATH")
-	if (tlsCertPath != "" && tlsKeyPath == "") || (tlsCertPath == "" && tlsKeyPath != "") {
-		utils.Fatal("TLS certificate and key paths must be provided together")
+	writeTimeout, err := time.ParseDuration(getEnv("SECRETARY_WRITE_TIMEOUT", "15s"))
+	if err != nil {
+		utils.Fatalf("Invalid SECRETARY_WRITE_TIMEOUT: %v", err)
+	}
+
+	idleTimeout, err := time.ParseDuration(getEnv("SECRETARY_IDLE_TIMEOUT", "60s"))
+	if err != nil {
+		utils.Fatalf("Invalid SECRETARY_IDLE_TIMEOUT: %v", err)
+	}
+
+	jwtExpiration, err := time.ParseDuration(getEnv("SECRETARY_JWT_EXPIRATION", "24h"))
+	if err != nil {
+		utils.Fatalf("Invalid SECRETARY_JWT_EXPIRATION: %v", err)
+	}
+
+	// Security: TLS configuration
+	tlsCertPath := os.Getenv("SECRETARY_TLS_CERT_PATH")
+	tlsKeyPath := os.Getenv("SECRETARY_TLS_KEY_PATH")
+
+	// Security: Check if running in production without TLS
+	if os.Getenv("SECRETARY_ENVIRONMENT") == "production" {
+		if tlsCertPath == "" || tlsKeyPath == "" {
+			utils.Fatalf("TLS certificate and key paths are required in production environment")
+		}
 	}
 
 	return &Config{
 		Server: ServerConfig{
-			Host:         getEnv("SERVER_HOST", "localhost"),
-			Port:         getEnv("SERVER_PORT", "6080"),
+			Host:         getEnv("SECRETARY_HOST", "localhost"),
+			Port:         getEnv("SECRETARY_PORT", "6080"),
 			ReadTimeout:  readTimeout,
 			WriteTimeout: writeTimeout,
 			IdleTimeout:  idleTimeout,
@@ -102,8 +117,8 @@ func Load() *Config {
 			TLSKeyPath:   tlsKeyPath,
 		},
 		Database: DatabaseConfig{
-			Driver:   getEnv("DB_DRIVER", "sqlite3"),
-			FilePath: getEnv("DB_FILE_PATH", "secretary.db"),
+			Driver:   getEnv("SECRETARY_DB_DRIVER", "sqlite3"),
+			FilePath: getEnv("SECRETARY_DB_PATH", "./data/secretary.db"),
 		},
 		Security: SecurityConfig{
 			JWTSecret:     secret,

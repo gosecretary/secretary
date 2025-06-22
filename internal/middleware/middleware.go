@@ -185,3 +185,33 @@ func RBAC(userService domain.UserService, roles ...string) mux.MiddlewareFunc {
 func HTTPRequest(method, uri, remoteAddr string, statusCode int, duration time.Duration) {
 	utils.Infof("HTTP %s %s %s %d %s", method, uri, remoteAddr, statusCode, duration)
 }
+
+// SecurityHeaders adds security headers to all responses
+func SecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Content Security Policy - prevent XSS attacks
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none';")
+
+		// X-Frame-Options - prevent clickjacking
+		w.Header().Set("X-Frame-Options", "DENY")
+
+		// X-Content-Type-Options - prevent MIME type sniffing
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+
+		// X-XSS-Protection - enable browser XSS protection
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+
+		// Referrer-Policy - control referrer information
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+
+		// Permissions-Policy - control browser features
+		w.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+
+		// Strict-Transport-Security - enforce HTTPS (only if TLS is enabled)
+		if r.TLS != nil {
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}

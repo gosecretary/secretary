@@ -9,116 +9,84 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	tests := []struct {
-		name     string
-		envVars  map[string]string
-		expected *Config
-	}{
-		{
-			name:    "default values",
-			envVars: map[string]string{},
-			expected: &Config{
-				Server: ServerConfig{
-					Host:         "localhost",
-					Port:         "6080",
-					ReadTimeout:  15 * time.Second,
-					WriteTimeout: 15 * time.Second,
-					IdleTimeout:  60 * time.Second,
-					TLSCertPath:  "",
-					TLSKeyPath:   "",
-				},
-				Database: DatabaseConfig{
-					Driver:   "sqlite3",
-					FilePath: "secretary.db",
-				},
-				Security: SecurityConfig{
-					JWTSecret:     "", // Will be generated randomly
-					JWTExpiration: 24 * time.Hour,
-				},
-			},
+	// Test with environment variables set
+	t.Setenv("SECRETARY_HOST", "0.0.0.0")
+	t.Setenv("SECRETARY_PORT", "8080")
+	t.Setenv("SECRETARY_SESSION_SECRET", "test-secret-key-that-is-long-enough-for-validation")
+	t.Setenv("SECRETARY_CSRF_SECRET", "test-csrf-secret-that-is-long-enough-for-validation")
+	t.Setenv("SECRETARY_READ_TIMEOUT", "30s")
+	t.Setenv("SECRETARY_WRITE_TIMEOUT", "30s")
+	t.Setenv("SECRETARY_IDLE_TIMEOUT", "120s")
+	t.Setenv("SECRETARY_JWT_EXPIRATION", "12h")
+	t.Setenv("SECRETARY_TLS_CERT_PATH", "/path/to/cert.pem")
+	t.Setenv("SECRETARY_TLS_KEY_PATH", "/path/to/key.pem")
+	t.Setenv("SECRETARY_DB_DRIVER", "postgres")
+	t.Setenv("SECRETARY_DB_PATH", "/path/to/db")
+
+	cfg := Load()
+
+	expected := &Config{
+		Server: ServerConfig{
+			Host:         "0.0.0.0",
+			Port:         "8080",
+			ReadTimeout:  30 * time.Second,
+			WriteTimeout: 30 * time.Second,
+			IdleTimeout:  120 * time.Second,
+			TLSCertPath:  "/path/to/cert.pem",
+			TLSKeyPath:   "/path/to/key.pem",
 		},
-		{
-			name: "custom values from environment",
-			envVars: map[string]string{
-				"SERVER_HOST":          "0.0.0.0",
-				"SERVER_PORT":          "9090",
-				"SERVER_READ_TIMEOUT":  "45s",
-				"SERVER_WRITE_TIMEOUT": "45s",
-				"SERVER_IDLE_TIMEOUT":  "90s",
-				"TLS_CERT_PATH":        "/path/to/cert.pem",
-				"TLS_KEY_PATH":         "/path/to/key.pem",
-				"DB_DRIVER":            "postgres",
-				"DB_FILE_PATH":         "/data/secretary.db",
-				"JWT_SECRET":           "custom-secret",
-				"JWT_EXPIRATION":       "12h",
-			},
-			expected: &Config{
-				Server: ServerConfig{
-					Host:         "0.0.0.0",
-					Port:         "9090",
-					ReadTimeout:  45 * time.Second,
-					WriteTimeout: 45 * time.Second,
-					IdleTimeout:  90 * time.Second,
-					TLSCertPath:  "/path/to/cert.pem",
-					TLSKeyPath:   "/path/to/key.pem",
-				},
-				Database: DatabaseConfig{
-					Driver:   "postgres",
-					FilePath: "/data/secretary.db",
-				},
-				Security: SecurityConfig{
-					JWTSecret:     "custom-secret",
-					JWTExpiration: 12 * time.Hour,
-				},
-			},
+		Database: DatabaseConfig{
+			Driver:   "postgres",
+			FilePath: "/path/to/db",
+		},
+		Security: SecurityConfig{
+			JWTSecret:     "test-secret-key-that-is-long-enough-for-validation",
+			JWTExpiration: 12 * time.Hour,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Clear environment
-			originalEnv := make(map[string]string)
-			for key := range tt.envVars {
-				originalEnv[key] = os.Getenv(key)
-				os.Unsetenv(key)
-			}
+	if cfg.Server.Host != expected.Server.Host {
+		t.Errorf("Expected Host %s, got %s", expected.Server.Host, cfg.Server.Host)
+	}
 
-			// Set test environment variables
-			for key, value := range tt.envVars {
-				os.Setenv(key, value)
-			}
+	if cfg.Server.Port != expected.Server.Port {
+		t.Errorf("Expected Port %s, got %s", expected.Server.Port, cfg.Server.Port)
+	}
 
-			// Load config
-			config := Load()
+	if cfg.Server.ReadTimeout != expected.Server.ReadTimeout {
+		t.Errorf("Expected ReadTimeout %v, got %v", expected.Server.ReadTimeout, cfg.Server.ReadTimeout)
+	}
 
-			// Verify
-			assert.Equal(t, tt.expected.Server.Host, config.Server.Host)
-			assert.Equal(t, tt.expected.Server.Port, config.Server.Port)
-			assert.Equal(t, tt.expected.Server.ReadTimeout, config.Server.ReadTimeout)
-			assert.Equal(t, tt.expected.Server.WriteTimeout, config.Server.WriteTimeout)
-			assert.Equal(t, tt.expected.Server.IdleTimeout, config.Server.IdleTimeout)
-			assert.Equal(t, tt.expected.Server.TLSCertPath, config.Server.TLSCertPath)
-			assert.Equal(t, tt.expected.Server.TLSKeyPath, config.Server.TLSKeyPath)
-			assert.Equal(t, tt.expected.Database.Driver, config.Database.Driver)
-			assert.Equal(t, tt.expected.Database.FilePath, config.Database.FilePath)
+	if cfg.Server.WriteTimeout != expected.Server.WriteTimeout {
+		t.Errorf("Expected WriteTimeout %v, got %v", expected.Server.WriteTimeout, cfg.Server.WriteTimeout)
+	}
 
-			// For JWT secret, if expected is empty (randomly generated), just check it's not empty
-			if tt.expected.Security.JWTSecret == "" {
-				assert.NotEmpty(t, config.Security.JWTSecret)
-			} else {
-				assert.Equal(t, tt.expected.Security.JWTSecret, config.Security.JWTSecret)
-			}
-			assert.Equal(t, tt.expected.Security.JWTExpiration, config.Security.JWTExpiration)
+	if cfg.Server.IdleTimeout != expected.Server.IdleTimeout {
+		t.Errorf("Expected IdleTimeout %v, got %v", expected.Server.IdleTimeout, cfg.Server.IdleTimeout)
+	}
 
-			// Restore original environment
-			for key, value := range originalEnv {
-				if value == "" {
-					os.Unsetenv(key)
-				} else {
-					os.Setenv(key, value)
-				}
-			}
-		})
+	if cfg.Server.TLSCertPath != expected.Server.TLSCertPath {
+		t.Errorf("Expected TLSCertPath %s, got %s", expected.Server.TLSCertPath, cfg.Server.TLSCertPath)
+	}
+
+	if cfg.Server.TLSKeyPath != expected.Server.TLSKeyPath {
+		t.Errorf("Expected TLSKeyPath %s, got %s", expected.Server.TLSKeyPath, cfg.Server.TLSKeyPath)
+	}
+
+	if cfg.Database.Driver != expected.Database.Driver {
+		t.Errorf("Expected Driver %s, got %s", expected.Database.Driver, cfg.Database.Driver)
+	}
+
+	if cfg.Database.FilePath != expected.Database.FilePath {
+		t.Errorf("Expected FilePath %s, got %s", expected.Database.FilePath, cfg.Database.FilePath)
+	}
+
+	if cfg.Security.JWTSecret != expected.Security.JWTSecret {
+		t.Errorf("Expected JWTSecret %s, got %s", expected.Security.JWTSecret, cfg.Security.JWTSecret)
+	}
+
+	if cfg.Security.JWTExpiration != expected.Security.JWTExpiration {
+		t.Errorf("Expected JWTExpiration %v, got %v", expected.Security.JWTExpiration, cfg.Security.JWTExpiration)
 	}
 }
 

@@ -151,7 +151,7 @@ func runAdditionalMigrations(db *sql.DB) error {
 			if err != nil {
 				return fmt.Errorf("failed to add column %s to table %s: %w", migration.column, migration.table, err)
 			}
-			fmt.Printf("Added column %s.%s\n", migration.table, migration.column)
+			fmt.Printf("Added column %q.%q\n", migration.table, migration.column)
 		}
 	}
 

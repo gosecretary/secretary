@@ -33,7 +33,7 @@ func main() {
 	case "server":
 		runServer()
 	default:
-		fmt.Printf("Unknown command: %s\n", command)
+		fmt.Printf("Unknown command: %q\n", command)
 		printUsage()
 		os.Exit(1)
 	}
@@ -149,6 +149,7 @@ func runServer() {
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recovery)
 	router.Use(middleware.CORS)
+	router.Use(middleware.SecurityHeaders)
 
 	// Create server
 	serverAddr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
