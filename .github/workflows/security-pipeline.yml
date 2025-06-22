@@ -7,7 +7,7 @@
 # - Dependency Scanning
 # - License Compliance
 
-name: Secretary Security Pipeline
+name: Secretary Security
 
 on:
   push:
