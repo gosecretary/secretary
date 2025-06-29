@@ -1,6 +1,58 @@
 version: '3.8'
 
 services:
+  secretary-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: secretary-test-app
+    environment:
+      # Server configuration
+      - SECRETARY_HOST=0.0.0.0
+      - SECRETARY_PORT=8080
+      - SECRETARY_READ_TIMEOUT=15s
+      - SECRETARY_WRITE_TIMEOUT=15s
+      - SECRETARY_IDLE_TIMEOUT=60s
+      
+      # Database configuration
+      - SECRETARY_DB_DRIVER=sqlite3
+      - SECRETARY_DB_PATH=/app/data/secretary-test.db
+      
+      # Security configuration
+      - SECRETARY_SESSION_SECRET=test-session-secret-for-testing-only-32-chars
+      - SECRETARY_CSRF_SECRET=test-csrf-secret-for-testing-only-32-chars
+      - SECRETARY_JWT_SECRET=test-jwt-secret-for-testing-only-32-chars
+      - SECRETARY_JWT_EXPIRATION=24h
+      - SECRETARY_BCRYPT_COST=10
+      - SECRETARY_SECURE_COOKIES=false
+      
+      # Rate limiting
+      - SECRETARY_RATE_LIMIT_REQUESTS=100
+      - SECRETARY_RATE_LIMIT_WINDOW=1h
+      
+      # Session configuration
+      - SECRETARY_SESSION_MAX_AGE=3600
+      
+      # Environment
+      - SECRETARY_ENVIRONMENT=test
+    ports:
+      - "8080:8080"
+      - "6080:6080"  # API documentation port
+    volumes:
+      - ./data:/app/data
+      - ./test-ssh-keys:/app/test-ssh-keys:ro
+    restart: unless-stopped
+    networks:
+      - secretary-network
+    depends_on:
+      - test-ssh-server
+    healthcheck:
+      test: ["CMD", "/app/secretary", "--health-check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   test-ssh-server:
     image: linuxserver/openssh-server:latest
     container_name: secretary-test-ssh
