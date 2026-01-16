@@ -33,7 +33,7 @@ RUN CGO_ENABLED=1 go build \
 # -----------------------------------------------------------------------------
 #  Main Stage
 # -----------------------------------------------------------------------------
-FROM alpine:3.19
+FROM alpine:3.23.2
 
 # Security: Install security updates and create non-root user
 RUN apk update && apk upgrade && \
